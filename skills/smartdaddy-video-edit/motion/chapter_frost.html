@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>목차 전환(frost)</title>
+<!--
+  목차(챕터) 전환 타이포. 글자 층만 그린다. 화면 전체 어두운 막·블러 판은 claude-edit scripts/chapter_frost.py 가 만든다.
+  키 컬러(밑줄·진행 칸)는 쿼리 theme_accent(chapter_frost.py 가 profile.md 의 chapter_color 를 넣음), 글꼴은 theme_font.
+  값: no(장 번호) · total(전체 장 수, 기본 4) · kicker(작은 부제) · title(큰 제목) · label(기본 없음 — chapter_frost.py 가 profile.md 의 channel_name 을 넣음) · exit(퇴장 초, 기본 .45)
+      x(왼쪽, 기본 110) · bottom(밑줄 아래 끝 y, 기본 872 = 자막 띠 886 위) · size(제목 px, 기본 120) · nosize(번호 px, 기본 250)
+  같은 t에는 항상 같은 그림. 미리 보기: chapter_frost.html?no=1&kicker=시작하기 전에&title=준비물 세 가지&play=1&dur=3&theme_accent=%23E8590C
+-->
+<style>
+:root{--iv:#FFFFFF;--bl:#3B5BDB;--co:#FF6B4A}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:transparent}
+body{font-family:'Apple SD Gothic Neo','AppleSDGothicNeo','Pretendard','Noto Sans KR',sans-serif;font-weight:800;color:var(--iv);-webkit-font-smoothing:antialiased}
+#root{position:absolute;left:0;top:0;width:1920px;height:1080px}
+.a{position:absolute;white-space:nowrap;text-shadow:0 2px 10px rgba(0,0,0,.35)}
+#no{font-weight:800;letter-spacing:-.04em;line-height:.8;font-variant-numeric:tabular-nums}
+#lab{display:flex;align-items:center;gap:16px;font-size:30px;letter-spacing:.02em;color:rgba(255,255,255,.82)}
+#bars{display:flex;gap:8px}
+#bars i{display:block;width:44px;height:8px;border-radius:4px;background:rgba(255,255,255,.22);position:relative;overflow:hidden}
+#bars i b{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+#kick{font-size:50px;font-weight:700;color:rgba(255,255,255,.9);letter-spacing:-.01em}
+#tit{font-weight:800;letter-spacing:-.025em;line-height:1}
+#ul{position:absolute;height:12px;border-radius:6px;background:var(--bl);transform-origin:0 50%}
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="a" id="no"></div>
+  <div class="a" id="lab"><span id="labt"></span><span id="bars"></span></div>
+  <div class="a" id="kick"></div>
+  <div class="a" id="tit"></div>
+  <div id="ul"></div>
+</div>
+<script>
+'use strict';
+const Q = new URLSearchParams(location.search), D = {};
+{ const _st = document.documentElement.style; for (const [k, v] of [['theme_accent', '--bl'], ['theme_bg', '--iv']]) { const c = Q.get(k); if (c) _st.setProperty(v, c); } const _f = Q.get('theme_font'); if (_f) document.addEventListener('DOMContentLoaded', () => { document.body.style.fontFamily = `'${_f}', sans-serif`; }); if (_f && document.body) document.body.style.fontFamily = `'${_f}', sans-serif`; }
+for (const [k, v] of Q) D[k] = v;
+const has = v => v !== undefined && v !== null && v !== '';
+const num = (v, d) => { const n = parseFloat(v); return isFinite(n) ? n : d };
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const P = (t, a, b) => clamp((t - a) / (b - a));
+const E = { out: x => 1 - (1 - x) ** 2, out3: x => 1 - (1 - x) ** 3, out4: x => 1 - (1 - x) ** 4, sine: x => -(Math.cos(Math.PI * x) - 1) / 2 };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = s => document.querySelector(s);
+
+const NO = Math.max(1, Math.round(num(D.no, 1))), TOTAL = Math.max(NO, Math.round(num(D.total, 4)));
+const EXIT = Math.max(.2, num(D.exit, .45)), X = num(D.x, 110), BOT = num(D.bottom, 872);
+const TS = num(D.size, 120), NS = num(D.nosize, 250);
+window.CARD_EXIT = EXIT;
+const no = $('#no'), lab = $('#lab'), kick = $('#kick'), tit = $('#tit'), ul = $('#ul');
+no.textContent = has(D.numtext) ? D.numtext : String(NO).padStart(2, '0');
+no.style.fontSize = NS + 'px';
+$('#labt').textContent = has(D.label) ? D.label : '';
+$('#bars').innerHTML = Array.from({ length: TOTAL }, () => '<i><b></b></i>').join('');
+const bars = [...document.querySelectorAll('#bars i b')];
+kick.innerHTML = esc(D.kicker || '');
+tit.innerHTML = esc(D.title || '');
+tit.style.fontSize = TS + 'px';
+if (!has(D.title)) throw new Error('title 이 없습니다');
+
+let laid = false, colX = 0, ulY = 0, titW = 0;
+function lay() {
+  // 아래에서 위로 쌓는다: 밑줄(BOT-12..BOT) → 제목 → 부제 → 라벨. 번호는 제목·부제 높이에 맞춰 왼쪽.
+  const nw = no.getBoundingClientRect().width;
+  colX = X + nw + 34;
+  ulY = BOT - 12;
+  const tH = TS * 1.0;
+  const tTop = ulY - 20 - tH;
+  tit.style.left = colX + 'px'; tit.style.top = tTop + 'px';
+  const kTop = tTop - 14 - 58;
+  kick.style.left = colX + 'px'; kick.style.top = kTop + 'px';
+  lab.style.left = colX + 'px'; lab.style.top = (kTop - 12 - 36) + 'px';
+  // 번호: 글자 아래 끝을 제목 아래 끝에 맞춘다(line-height .8 이라 박스 ≈ 글자 높이)
+  const nh = no.getBoundingClientRect().height;
+  no.style.left = X + 'px'; no.style.top = (tTop + tH - nh + 4) + 'px';
+  titW = tit.getBoundingClientRect().width;
+  ul.style.left = colX + 'px'; ul.style.top = ulY + 'px'; ul.style.width = titW + 'px';
+  laid = document.fonts.status === 'loaded';
+}
+function S(e, o) {
+  const x = o.x || 0, y = o.y || 0, s = o.s ?? 1, b = o.b || 0;
+  e.style.transform = `translate(${x.toFixed(2)}px,${y.toFixed(2)}px)` + (s !== 1 ? ` scale(${s.toFixed(4)})` : '');
+  e.style.opacity = clamp(o.o ?? 1).toFixed(3); e.style.filter = b > .05 ? `blur(${b.toFixed(2)}px)` : 'none';
+}
+// 들어오는 박자(초): 막 0~.35(파이썬) · 번호 .12 · 라벨 .28 · 부제 .36 · 제목 .48(왼쪽에서 닦임) · 밑줄 .78 · 진행 칸 .9
+window.render = function (t, dur) {
+  dur = +dur > 0 ? +dur : 3;
+  if (!laid) lay();
+  const tt = clamp(+t || 0, 0, dur);
+  const pout = E.sine(P(tt, dur - EXIT, dur - EXIT * .35));          // 글자는 막보다 먼저 빠진다
+  const ox = -46 * pout, oo = 1 - pout;
+  // 번호: 아래에서 크게 올라오며 선명해짐
+  const pn = E.out4(P(tt, .12, .72));
+  no.style.transformOrigin = '0 100%';
+  S(no, { x: ox, y: (1 - pn) * 60, s: 1.12 - .12 * pn, o: E.out(P(tt, .12, .42)) * oo, b: (1 - pn) * 14 });
+  const pl = E.out4(P(tt, .28, .78));
+  S(lab, { x: ox - (1 - pl) * 40, o: E.out(P(tt, .28, .55)) * oo, b: (1 - pl) * 6 });
+  const pk = E.out4(P(tt, .36, .86));
+  S(kick, { x: ox - (1 - pk) * 50, o: E.out(P(tt, .36, .62)) * oo, b: (1 - pk) * 8 });
+  // 제목: 왼쪽에서 닦이며 들어옴
+  const pt = E.out3(P(tt, .48, 1.05));
+  const m = pt >= 1 ? 'none' : `linear-gradient(90deg,#000 ${(pt * 130 - 30).toFixed(1)}%,transparent ${(pt * 130).toFixed(1)}%)`;
+  tit.style.webkitMaskImage = m; tit.style.maskImage = m;
+  S(tit, { x: ox - (1 - pt) * 30, o: (pt > 0 ? 1 : 0) * oo });
+  // 밑줄: 그어짐
+  const pu = E.out4(P(tt, .78, 1.28));
+  ul.style.transform = `translateX(${ox.toFixed(2)}px) scaleX(${pu.toFixed(4)})`; ul.style.opacity = (pu > 0 ? 1 : 0) * oo;
+  // 진행 칸: 앞 장은 바탕색, 지금 장은 키 컬러로 차오름
+  bars.forEach((b, i) => {
+    if (i < NO - 1) { b.style.width = '100%'; b.style.background = 'rgba(255,255,255,.75)' }
+    else if (i === NO - 1) { b.style.width = (100 * E.out3(P(tt, .9, 1.35))).toFixed(1) + '%'; b.style.background = 'var(--bl)' }
+    else b.style.width = '0%';
+  });
+};
+if (Q.has('play')) { const dur = num(D.dur, 3), st = performance.now(); document.body.style.background = '#333'; const loop = () => { window.render(((performance.now() - st) / 1000) % (dur + .6), dur); requestAnimationFrame(loop) }; requestAnimationFrame(loop) }
+else window.render(num(D.t, 1.5), num(D.dur, 3));
+</script>
+</body>
+</html>

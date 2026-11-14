@@ -1,0 +1,25 @@
+# 파이썬
+__pycache__/
+*.pyc
+.venv/
+
+# 비밀값
+.env
+.env.*
+
+# 맥
+.DS_Store
+
+# 영상·음성 대용량
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.m4a
+*.wav
+*.mp3
+*.aac
+*.flac
+*.mkv
+*.webm
+*.avi

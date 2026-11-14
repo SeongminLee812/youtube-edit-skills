@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>모션 카드(밝은)</title>
+<!--
+  모션 카드(밝은 스타일, 1920×1080). 원작 cards.html과 같은 키를 받고 색·배치를 토킹헤드용으로 바꿨다. 색·글꼴은 쿼리 theme_accent·theme_accent2·theme_bg·theme_font.
+  종류(kind): title(큰 제목, hook 모양) · number · steps · verdict · compare · score · toc(목차) · hook(도입 질문)
+  화면에 '설명용 그림·설명용 도식·예시·참고용' 같은 메타 라벨을 넣지 않는다(2026-10-31 사용자). tag는 내용 라벨에만 쓴다.
+  배치(place):
+    side (기본)  얼굴 옆 세로 카드. side=right(기본)|left. 얼굴 안전영역 x 520–1400·y 0–620과 하단 자막 y 950–1080을 비운다.
+                 오른쪽 카드 x 1440–1872, 왼쪽 카드 x 48–480(폭 432, 그림자 포함 얼굴 영역 밖), 세로 y 72–920 안. y=center(기본)|top|bottom
+    split        참고 채널식 오른쪽 패널 x 1040–1920. 원본은 CapCut zoom(scale 1.3, x 0.75)으로 진행자를 왼쪽으로. toc용
+    full         화면 전체 바탕색. 말로 길게 설명하는 구간에서 2~6초만. 글자는 y 950 위에만 둔다.
+    glass        얼굴이 보이는 반투명 카드(toc·hook). 왼쪽 아래 차콜 반투명 판 + 바탕색 글자, 얼굴·아래 18% 비움. 챕터 전환의 기본(2026-10-31 사용자)
+  끝 처리: exit=0.45(기본) 마지막 0.45초 동안 빠지고 마지막 프레임은 완전히 투명. exit=0 이면 마지막 0.5초를 멈춘다(CapCut에서 늘려 쓰기).
+  값 넘기는 법·[대괄호] 강조·data={JSON}은 cards.html과 같다. 예시는 examples_channel.md.
+  렌더:  python scripts/render_motion.py motion/cards_channel.html out --alpha --dur 4 --query "kind=number&title=구독자&from=120&to=480&unit=명"
+  브라우저 미리 보기: cards_channel.html?kind=number&to=20&unit=개&play=1&dur=4   (bgimg=그림경로 로 배경 그림을 깔 수 있다. 미리 보기 전용)
+  같은 t에는 항상 같은 그림이 나온다. 무작위 값·실제 시계를 쓰지 않는다.
+-->
+<style>
+:root{--iv:#FFFFFF;--bl:#3B5BDB;--ink:#1D2433;--co:#FF6B4A;--sky:#BFD7FF;--mute:rgba(29,36,51,.62);--line:rgba(29,36,51,.12);--card:#FFFCF6;--bl-rgb:59,91,219;--co-rgb:255,107,74;--iv-rgb:255,255,255;--font:'Apple SD Gothic Neo'}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:transparent}
+body{font-family:var(--font),'Apple SD Gothic Neo','AppleSDGothicNeo','Pretendard','Noto Sans KR','Malgun Gothic',sans-serif;font-weight:700;color:var(--ink);-webkit-font-smoothing:antialiased}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden}
+#fullbg{position:absolute;left:0;top:0;width:1920px;height:1080px;background:var(--iv) radial-gradient(circle,rgba(29,36,51,.075) 0 2.4px,transparent 2.9px) 12px 12px/48px 48px;opacity:0}
+.col{display:flex;flex-direction:column;align-items:center}
+.ink{color:var(--ink)}
+/* 강조 = 키 컬러 상자 + 바탕색 글자. 살짝만 기울인다 */
+.stk{display:inline-block;background:var(--bl);color:var(--iv);padding:.02em .22em .1em;margin:0 .06em;border-radius:.14em;transform:rotate(-1.5deg);letter-spacing:-.01em}
+.on .stk{background:var(--iv);color:var(--bl)}
+svg{display:block}
+
+/* ───── side: 얼굴 옆 세로 카드 */
+.sp{position:absolute;top:0;width:432px;padding:32px 30px 36px;background:var(--iv);border-radius:28px;box-shadow:0 12px 26px rgba(14,20,32,.28),0 2px 5px rgba(14,20,32,.18)}
+.hd{font-size:40px;font-weight:800;color:var(--bl);letter-spacing:-.01em;line-height:1.22;word-break:keep-all}
+.hd-foot{display:flex;align-items:center;gap:16px;margin:14px 0 24px}
+.hd-line{width:56px;height:6px;border-radius:3px;background:var(--bl);transform-origin:0 50%}
+.rdots{display:flex;gap:7px;flex:none;margin-left:auto}
+.rdots i{display:block;width:11px;height:11px;border-radius:50%;background:rgba(29,36,51,.16)}
+.sub{font-size:40px;font-weight:700;color:var(--mute);line-height:1.3;word-break:keep-all}
+
+/* number · side */
+.n-from{font-size:40px;font-weight:800;color:var(--mute);white-space:nowrap}
+.n-from b{font-weight:800}
+.n-arr{width:44px;height:44px;margin:8px 0 2px 2px}
+.n-row{display:flex;align-items:baseline;white-space:nowrap}
+.n-val{font-size:160px;font-weight:800;line-height:1;letter-spacing:-.03em;color:var(--bl);text-align:right;font-variant-numeric:tabular-nums}
+.n-unit{font-size:56px;font-weight:800;color:var(--ink);margin-left:10px}
+.n-bar{position:relative;width:100%;height:14px;margin-top:26px}
+.n-track{position:absolute;inset:0;border-radius:7px;background:rgba(29,36,51,.09)}
+.n-ghost{position:absolute;left:0;top:0;bottom:0;border-radius:7px;background:rgba(var(--bl-rgb),.22)}
+.n-fill{position:absolute;left:0;top:0;bottom:0;border-radius:7px;background:var(--bl)}
+.sp .n-sub{margin-top:24px}
+.n-badge{display:flex;align-items:center;gap:12px;margin-top:24px;font-size:42px;font-weight:800;white-space:nowrap}
+.n-badge svg{width:44px;height:44px;flex:none}
+
+/* steps · side */
+.st-list{display:flex;flex-direction:column;gap:6px}
+.st-row{position:relative;display:flex;align-items:center;gap:18px;margin:0 -16px;padding:0 16px;border-radius:16px}
+.st-no{position:relative;flex:none;width:50px;height:50px}
+.st-no .d{position:absolute;inset:0;border-radius:50%;border:3px solid rgba(29,36,51,.22);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800}
+.st-no svg{position:absolute;inset:0;width:50px;height:50px}
+.st-name{font-size:42px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+.st-sub{font-size:30px;font-weight:700;color:var(--mute);white-space:nowrap;margin-top:2px}
+
+/* verdict · side */
+.vd-hd{display:flex;align-items:center;gap:14px;font-size:40px;font-weight:800;color:var(--bl);white-space:nowrap;margin-bottom:10px}
+.vd-hd svg{width:46px;height:46px;flex:none}
+.vd-hd.no{color:var(--ink)}
+.vd-it{display:flex;align-items:flex-start;gap:12px;font-size:40px;font-weight:700;line-height:1.26;padding:6px 0;word-break:keep-all}
+.vd-it .b{flex:none;width:46px;display:flex;justify-content:center;padding-top:.36em}
+.vd-it .b i{display:block;width:14px;height:14px;border-radius:50%;background:var(--bl)}
+.vd-it.no{color:rgba(29,36,51,.78)}
+.vd-it.no .b{padding-top:.3em}
+.vd-it.no .b svg{width:22px;height:22px}
+.vd-sep{height:2px;background:var(--line);margin:16px 0 18px;transform-origin:0 50%}
+
+/* compare · side */
+.cp-lab{font-size:38px;font-weight:800;color:var(--mute);white-space:nowrap}
+.cp-val{font-size:108px;font-weight:800;line-height:1.02;letter-spacing:-.03em;white-space:nowrap;font-variant-numeric:tabular-nums}
+.cp-val small{font-size:46px;font-weight:800;margin-left:8px;letter-spacing:0}
+.cp-blk.b .cp-val{font-size:144px}.cp-blk.b .cp-val small{font-size:56px}
+.cp-note{font-size:38px;font-weight:700;color:var(--mute);line-height:1.3;word-break:keep-all;margin-top:4px}
+.cp-mid{display:flex;align-items:center;gap:14px;margin:12px 0 10px;font-size:38px;font-weight:800;color:var(--bl)}
+.cp-mid svg{width:46px;height:46px}
+
+/* score · side */
+.sc-list{display:flex;flex-direction:column;gap:8px}
+.sc-row{position:relative;display:flex;align-items:center;margin:0 -16px;padding:6px 16px;border-radius:16px}
+.sc-name{font-size:40px;font-weight:800;white-space:nowrap;margin-right:auto}
+.sc-valw{position:relative;display:flex;align-items:baseline}
+.sc-val{font-size:96px;font-weight:800;line-height:1.05;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.sc-unit{font-size:38px;font-weight:800;margin-left:6px}
+.sc-plus{position:absolute;right:100%;top:8%;margin-right:10px;font-size:44px;font-weight:800;white-space:nowrap}
+
+/* ───── full: 화면 전체 */
+.full{position:absolute;left:0;top:0;width:1920px;height:950px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.fhd{font-size:48px;font-weight:800;color:var(--bl);letter-spacing:-.01em;white-space:nowrap}
+.fhd-line{width:96px;height:8px;border-radius:4px;background:var(--bl);margin:22px 0 0}
+.fsub{font-size:46px;font-weight:700;color:var(--mute);max-width:1500px;text-align:center;line-height:1.42;word-break:keep-all;text-wrap:balance}
+.box{background:var(--card);border:2px solid var(--line);border-radius:26px;box-shadow:0 14px 30px rgba(29,36,51,.08)}
+.frd{display:flex;align-items:center;gap:22px}
+.frd .rdots i{width:14px;height:14px}
+.frd .rdots{gap:10px}
+
+.full .n-row{position:relative;margin-top:30px}
+.full .n-val{font-size:300px;line-height:1.02}
+.full .n-unit{font-size:100px;margin-left:22px}
+.full .n-badge{position:absolute;left:100%;top:14%;margin:0 0 0 34px;font-size:60px;gap:16px}
+.full .n-badge svg{width:62px;height:62px}
+.full .n-bar{width:1100px;height:22px;margin-top:46px}
+.full .n-track,.full .n-ghost,.full .n-fill{border-radius:11px}
+.n-fromlab{position:absolute;top:40px;font-size:32px;font-weight:800;color:var(--mute);white-space:nowrap}
+.full .n-sub{margin-top:62px}.full .n-sub.lo{margin-top:104px}
+
+.fs-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:28px;margin-top:60px}
+.fs-card{position:relative;display:flex;flex-direction:column;justify-content:space-between;padding:28px 32px 30px}
+.fs-no{font-size:28px;font-weight:800;color:var(--bl);letter-spacing:.06em}
+.fs-name{font-size:52px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+.fs-sub{font-size:34px;font-weight:700;color:var(--mute);margin-top:8px;white-space:nowrap}
+.fs-chk{position:absolute;right:24px;top:24px;width:46px;height:46px}
+.fs-list{display:flex;flex-direction:column;gap:16px;margin-top:52px}
+.fs-row{width:1240px;display:flex;align-items:center;gap:34px;padding:0 46px}
+.fs-row .fs-sub{margin:0 0 0 auto}
+.fs-row .fs-chk{position:static;flex:none}
+
+.fv-wrap{display:flex;gap:40px;align-items:stretch;margin-top:50px}
+.fv-panel{width:800px;padding:42px 52px 36px}
+.fv-hd{display:flex;align-items:center;gap:22px;font-size:52px;font-weight:800;color:var(--bl);padding-bottom:28px;margin-bottom:18px;border-bottom:2px solid var(--line);white-space:nowrap}
+.fv-hd.no{color:var(--ink)}
+.fv-hd svg{width:62px;height:62px;flex:none}
+.fv-it{display:flex;align-items:center;gap:26px;min-height:88px;font-size:46px;font-weight:700;line-height:1.25;word-break:keep-all}
+.fv-it .b{flex:none;width:40px;display:flex;justify-content:center}
+.fv-it .b i{display:block;width:16px;height:16px;border-radius:50%;background:var(--bl)}
+.fv-it.no{color:rgba(29,36,51,.78)}
+.fv-it.no .b svg{width:28px;height:28px}
+
+.fc-row{display:flex;align-items:center;margin-top:54px}
+.fc-panel{width:760px;min-height:540px;padding:48px 56px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.fc-lab{font-size:42px;font-weight:800;color:var(--mute);white-space:nowrap}
+.fc-val{font-size:210px;font-weight:800;line-height:1.05;letter-spacing:-.03em;margin-top:18px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fc-val small{font-size:72px;font-weight:800;margin-left:14px;letter-spacing:0}
+.fc-note{font-size:40px;font-weight:700;color:var(--mute);margin-top:20px;max-width:640px;line-height:1.4;word-break:keep-all;text-wrap:balance}
+.fc-mid{width:150px;display:flex;justify-content:center}
+.fc-mid span{width:104px;height:104px;border-radius:50%;background:var(--bl);color:var(--iv);display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;white-space:nowrap}
+.fc-mid svg{width:54px;height:54px}
+
+.fsc-row{display:flex;gap:48px;margin-top:60px}
+.fsc-card{position:relative;height:520px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.fsc-name{font-size:54px;font-weight:800;white-space:nowrap}
+.fsc-valw{position:relative;display:flex;align-items:baseline;margin-top:6px}
+.fsc-val{font-size:260px;font-weight:800;line-height:1.05;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.fsc-unit{font-size:70px;font-weight:800;margin-left:10px}
+.fsc-plus{position:absolute;left:100%;top:14%;margin-left:12px;font-size:60px;font-weight:800;white-space:nowrap}
+
+/* ───── split: 참고 채널식 오른쪽 패널. 진행자는 CapCut zoom(scale 1.3, x 0.75)으로 왼쪽으로 민다 */
+.split{position:absolute;left:1040px;top:0;width:880px;height:1080px;background:var(--iv);box-shadow:-16px 0 36px rgba(14,20,32,.22)}
+.split-in{position:absolute;left:88px;right:88px;top:0;height:950px;display:flex;flex-direction:column;justify-content:center}
+.split .hd{font-size:46px}
+.tag{display:inline-block;align-self:flex-start;font-size:24px;font-weight:700;color:var(--mute);border:2px solid var(--line);border-radius:8px;padding:2px 10px;margin-bottom:14px;white-space:nowrap}
+.full .tag{align-self:center;margin:18px 0 0}
+
+/* number v2: 0 기준 막대 두 줄 + 늘어난 부분 */
+.nb-big{display:flex;align-items:baseline;white-space:nowrap;transform-origin:0 70%}
+.full .nb-big{transform-origin:50% 70%;margin-top:26px}
+.full .nb-big .n-val{font-size:280px}.full .nb-big .n-unit{font-size:96px;margin-left:20px}
+.nb-bars{position:relative;margin-top:28px;width:100%}
+.full .nb-bars{width:1320px;margin-top:40px}
+.nb-row{position:relative;margin-top:16px}
+.nb-lab{font-size:36px;font-weight:800;color:var(--mute);white-space:nowrap;margin-bottom:8px}
+.nb-lab b{color:var(--ink)}
+.full .nb-row{display:flex;align-items:center;gap:28px;margin-top:22px}
+.full .nb-lab{width:300px;flex:none;text-align:right;margin:0;font-size:44px}
+.nb-track{position:relative;height:30px;flex:1;border-radius:8px;background:rgba(29,36,51,.06)}
+.full .nb-track{height:48px;border-radius:12px}
+.nb-base{position:absolute;left:0;top:0;bottom:0;border-radius:inherit;background:rgba(29,36,51,.34)}
+.nb-grow{position:absolute;top:0;bottom:0;border-radius:0 8px 8px 0;background:var(--bl)}
+.full .nb-grow{border-radius:0 12px 12px 0}
+.nb-guide{position:absolute;top:0;bottom:0;width:0;border-left:3px dashed rgba(29,36,51,.45)}
+.nb-brk{position:absolute;top:100%;margin-top:10px;height:16px}
+.nb-brk i{position:absolute;left:0;right:0;top:0;height:16px;border:4px solid var(--bl);border-top:0;border-radius:0 0 6px 6px;transform-origin:0 50%}
+.nb-badge{position:absolute;right:0;top:24px;display:flex;align-items:center;gap:10px;font-size:40px;font-weight:800;white-space:nowrap}
+.nb-badge svg{width:42px;height:42px;flex:none}
+.full .nb-badge{right:auto;left:50%;font-size:56px;transform:translateX(-50%)}
+.nb-bars{margin-bottom:78px}.full .nb-bars{margin-bottom:96px}
+.full .nb-badge svg{width:56px;height:56px}
+.nb-sub{margin-top:0}
+
+/* toc: 목차. 지금 장만 진하게, 키 컬러 막대가 앞 장에서 옮겨 온다 */
+.toc-list{position:relative;margin-top:8px;display:flex;flex-direction:column;gap:30px}
+.toc-bar{position:absolute;left:0;top:0;width:8px;border-radius:4px;background:var(--bl)}
+.toc-row{position:relative;display:flex;gap:20px;padding-left:34px;align-items:flex-start}
+.toc-no{font-size:40px;font-weight:800;color:var(--bl);line-height:1.22;min-width:56px;font-variant-numeric:tabular-nums}
+.toc-t{font-size:50px;font-weight:800;line-height:1.22;letter-spacing:-.015em;word-break:keep-all}
+.toc-s{font-size:32px;font-weight:700;color:var(--mute);margin-top:6px;word-break:keep-all}
+.toc-ck{position:absolute;right:0;top:4px;width:42px;height:42px}
+.sp .toc-list{gap:20px}.sp .toc-row{padding-left:26px;gap:14px}.sp .toc-no{font-size:32px;min-width:42px}.sp .toc-t{font-size:38px}.sp .toc-s{font-size:28px}.sp .toc-ck{width:36px;height:36px}
+
+/* ───── 전체 화면 카드: 머리표, hook·title, 목차 전체 화면 */
+.eb{position:absolute;left:96px;top:54px;display:flex;align-items:center;gap:14px;font-size:26px;font-weight:800;color:var(--bl);white-space:nowrap}
+.eb i{display:block;width:38px;height:7px;border-radius:2px;background:var(--bl)}
+.hk{width:1640px;display:flex;flex-direction:column;align-items:flex-start}
+.hk-q{font-size:124px;font-weight:800;letter-spacing:-.03em;line-height:1.1;white-space:nowrap}
+.hk-s{font-size:58px;font-weight:700;color:var(--mute);margin-top:28px;white-space:nowrap}
+.hk-opts{display:flex;gap:30px;margin-top:72px;width:100%}
+.hk-opt{flex:1;height:184px;border-radius:26px;background:var(--card);border:4px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:96px;font-weight:800;box-shadow:0 14px 30px rgba(29,36,51,.08)}
+.fs-list.big{gap:24px}.fs-list.big .fs-row{width:1440px;padding:0 56px}.fs-list.big .fs-no{font-size:36px}.fs-list.big .fs-name{font-size:64px}.fs-list.big .fs-sub{font-size:38px}.fs-list.big .fs-chk{width:58px;height:58px}
+.fs-note{margin-top:50px;font-size:46px;font-weight:800;color:var(--bl);text-align:center;word-break:keep-all}
+.tocw{width:1300px}
+.toc-hd{font-size:46px;font-weight:800;color:var(--bl)}
+.tocw .hd-line{width:72px;height:8px;border-radius:4px;margin:18px 0 0}
+.full .toc-list{gap:44px;margin-top:52px}
+.full .toc-row{padding-left:48px;gap:30px}
+.full .toc-no{font-size:58px;min-width:86px}
+.full .toc-t{font-size:74px}
+.full .toc-s{font-size:40px;margin-top:8px}
+.full .toc-ck{width:60px;height:60px;top:14px}
+.full .toc-bar{width:11px;border-radius:6px}
+.full .hd-foot .hd-line{width:96px;height:9px}
+
+/* compare 도식: 요일 칸 */
+.wk{display:flex;gap:10px;margin-top:22px}
+.wk span{width:62px;height:76px;border-radius:12px;border:3px solid rgba(29,36,51,.18);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;color:rgba(29,36,51,.45)}
+.wk span.on{border-color:var(--bl)}
+.wk span.opt{border-style:dashed}
+.wk span b{position:absolute;inset:-3px;border-radius:12px;background:var(--bl);color:var(--iv);display:flex;align-items:center;justify-content:center;font-weight:800}
+.wk span{position:relative}
+.fc-val.wkv{font-size:120px}.fc-val.wkv small{font-size:52px}
+
+/* ───── glass(v5, 2026-10-31): 얼굴이 보이는 반투명 알파 카드. 2026-10-18 챕터 자리(왼쪽 아래)에 차콜 반투명 판 + 바탕색 글자.
+   얼굴(x 520–1400·y 0–620)과 아래 18%(y 886+)를 비운다. 판 불투명도 ga(기본 .5: 예시 영상처럼 밝은 화면에서 글자 대비를 지키는 값, 2026-10-18 감정 전환 3안은 .38–.44) */
+.gl{position:absolute;left:0;top:0;width:1920px;height:1080px}
+.gl-pl{position:absolute;border-radius:20px;background:rgba(29,36,51,var(--ga,.5));border:2px solid rgba(var(--iv-rgb),.16)}
+.gl-tx{position:absolute;display:flex;align-items:center;white-space:nowrap;color:var(--iv);text-shadow:0 1px 3px rgba(0,0,0,.32)}
+.gl-eb{gap:14px;font-size:28px;font-weight:800;letter-spacing:.01em}
+.gl-eb i{display:block;width:40px;height:7px;border-radius:2px;background:var(--bl)}
+.gl-ind{position:absolute;border-radius:20px;background:rgba(var(--bl-rgb),.86)}
+.gt-no{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;width:52px;flex:none}
+.gt-t{font-size:44px;font-weight:800;letter-spacing:-.015em}
+.gt-ck{width:38px;height:38px;flex:none;margin-left:18px}
+.gh-q{font-size:76px;font-weight:800;letter-spacing:-.03em;line-height:1.12}
+.gh-s{font-size:38px;font-weight:700;opacity:.92;margin-top:4px}
+.gh-box{flex-direction:column;align-items:flex-start;justify-content:center}
+.gh-o{justify-content:center;font-size:48px;font-weight:800;letter-spacing:-.01em}
+</style>
+</head>
+<body>
+<div id="stage"><div id="fullbg"></div></div>
+<script>
+'use strict';
+// ───────── 공통 도구 (cards.html과 같은 이름)
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const P = (t, a, b) => b <= a ? (t >= a ? 1 : 0) : clamp((t - a) / (b - a));
+const lerp = (a, b, q) => a + (b - a) * q;
+const E = { out: x => 1 - (1 - x) ** 2, out3: x => 1 - (1 - x) ** 3, out4: x => 1 - (1 - x) ** 4,
+  sine: x => -(Math.cos(Math.PI * x) - 1) / 2, bump: x => Math.sin(Math.PI * clamp(x)) };
+
+// ───────── 값 읽기: 주소 뒤 ?a=b 와 data={JSON}
+const Q = new URLSearchParams(location.search);
+const THEME = (() => {   // 색·글꼴: 쿼리 theme_* (claude-edit 이 profile.md 에서 넣는다). 없으면 기본값
+  const hx = (s, d) => { const m = /^#?([0-9a-f]{6})$/i.exec(s || ''); return m ? [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)) : d; };
+  const T = {}, st = document.documentElement.style;
+  for (const [k, q, d] of [['bl', 'theme_accent', [59, 91, 219]], ['co', 'theme_accent2', [255, 107, 74]], ['iv', 'theme_bg', [255, 255, 255]]]) { const a = hx(Q.get(q), d); T[k + 'rgb'] = a; T[k + 's'] = a.join(',');
+    T[k] = '#' + a.map(v => v.toString(16).padStart(2, '0')).join(''); st.setProperty('--' + k, T[k]); st.setProperty('--' + k + '-rgb', T[k + 's']); }
+  const f = Q.get('theme_font'); if (f) st.setProperty('--font', `'${f}'`);
+  return T; })();
+const D = {};
+const undo = v => { if (typeof v === 'string' && /%[0-9A-Fa-f]{2}/.test(v)) { try { return decodeURIComponent(v) } catch (e) {} } return v };
+for (const [k, v] of Q) if (k !== 'data') D[k] = undo(v);
+let ERR = '';
+if (Q.has('data')) {
+  const raw = Q.get('data'); let obj = null;
+  for (const f of [s => JSON.parse(s), s => JSON.parse(decodeURIComponent(s)), s => JSON.parse(s.replace(/'/g, '"'))]) { try { obj = f(raw); break } catch (e) {} }
+  if (obj && typeof obj === 'object' && !Array.isArray(obj)) Object.assign(D, obj);
+  else ERR = 'data= 값을 JSON으로 읽지 못했습니다: ' + raw.slice(0, 60);
+}
+const has = v => v !== undefined && v !== null && v !== '';
+const str = (v, d = '') => has(v) ? String(v) : d;
+const num = (v, d = 0) => { if (!has(v)) return d; const n = parseFloat(String(v).replace(/,/g, '')); return isFinite(n) ? n : d };
+const list = v => Array.isArray(v) ? v : (has(v) ? String(v).split('|').map(s => s.trim()) : []);
+const decs = v => { const m = String(v ?? '').replace(/,/g, '').match(/\.(\d+)/); return m ? m[1].length : 0 };
+const isNum = v => typeof v === 'number' || /^\s*-?[\d,]*\.?\d+\s*$/.test(String(v ?? ''));
+const off = v => ['0', 0, false, 'false', 'off'].includes(v);
+const GROUP = !off(D.group);
+const fmt = (v, d) => GROUP ? v.toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d }) : v.toFixed(d);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const rich = s => esc(s).replace(/\\n|\n/g, '<br>').replace(/\[([^\]]+)\]/g, '<span class="stk">$1</span>');
+
+const PLACE = ['full', 'split', 'glass'].includes(D.place) ? D.place : 'side';   // glass: 얼굴이 보이는 반투명 카드(toc·hook)
+const SIDE = D.side === 'left' ? 'left' : 'right';
+const ALPHA = ['1', 'true'].includes(String(D.alpha));
+const EXIT = has(D.exit) ? Math.max(0, num(D.exit)) : .45;
+const isSplit = PLACE === 'split';
+const isSide = PLACE === 'side' || isSplit;             // split은 side와 같은 세로 배치를 넓은 패널에 쓴다
+const IW = isSplit ? 704 : 372;                       // 안쪽 폭: side 432 − 60, split 880 − 176
+window.CARD_EXIT = EXIT;
+const NOSCALE = ['1', 'true'].includes(String(D.noscale));   // v3: 크기 변화(확대·맥박·다가감) 없이 이동·흐림만
+const BGIN = !off(D.bgin);                                   // bgin=0: 전체 화면 바탕을 첫 프레임부터 채운다(MP4 삽입용)                              // render_motion.py가 멈춘 장면 시각을 고를 때 읽는다
+
+// ───────── 그리기 도구
+const stage = $('#stage'), fullbg = $('#fullbg');
+function add(html, parent) { const d = document.createElement('div'); d.innerHTML = html.trim(); const e = d.firstElementChild; parent.appendChild(e); return e }
+function S(e, o = {}) {
+  const x = o.x || 0, y = o.y || 0, s = NOSCALE && !o.keep ? 1 : (o.s ?? 1), b = o.b || 0;
+  let tr = o.persp ? `perspective(${o.persp}px) ` : '';
+  tr += `translate(${x.toFixed(2)}px,${y.toFixed(2)}px)`;   // 2D만: will-change·translate3d는 GPU 층을 만들어 같은 t도 앞 프레임에 따라 다르게 그릴 수 있다(motion-reel-kit 실측)
+  if (o.rx) tr += ` rotateX(${o.rx.toFixed(2)}deg)`;
+  if (o.r) tr += ` rotate(${o.r.toFixed(2)}deg)`;
+  if (s !== 1) tr += ` scale(${s.toFixed(4)})`;
+  e.style.transform = tr; e.style.opacity = clamp(o.o ?? 1).toFixed(3); e.style.filter = b > .05 ? `blur(${b.toFixed(2)}px)` : 'none';
+}
+// 등장 방식. 튕김·회전·파티클 없이 짧은 이동과 흐림만 쓴다.
+function rise(e, t, t0, d = .55, ex = {}) {
+  const p = E.out4(P(t, t0, t0 + d)); S(e, { ...ex, y: (ex.y || 0) + (1 - p) * 24, o: (ex.o ?? 1) * E.out(P(t, t0, t0 + d * .55)), b: (1 - p) * 10 }); return p }
+function blurIn(e, t, t0, d = .7, ex = {}) {
+  const p = E.out3(P(t, t0, t0 + d)); S(e, { ...ex, s: (ex.s ?? 1) * lerp(.94, 1, p), o: (ex.o ?? 1) * E.out(P(t, t0, t0 + d * .5)), b: (1 - p) * 18 }); return p }
+function push(e, t, t0, d = .55, dir = 1, ex = {}, dist = 60) {
+  const p = E.out4(P(t, t0, t0 + d)); S(e, { ...ex, x: (ex.x || 0) + (1 - p) * dist * dir, o: (ex.o ?? 1) * E.out(P(t, t0, t0 + d * .5)), b: (1 - p) * 8 }); return p }
+function flip(e, t, t0, d = .75, ex = {}) {
+  const p = E.out4(P(t, t0, t0 + d)); e.style.transformOrigin = '50% 100%';
+  S(e, { ...ex, persp: 1600, rx: (1 - p) * 60, y: (ex.y || 0) + (1 - p) * 20, o: (ex.o ?? 1) * E.out(P(t, t0, t0 + d * .45)), b: (1 - p) * 6 }); return p }
+function wipe(e, t, t0, d = .7, dir = 'r', ex = {}) {
+  const p = E.out3(P(t, t0, t0 + d));
+  const m = p >= 1 ? 'none' : `linear-gradient(${dir === 'l' ? 270 : 90}deg,#000 ${(p * 135 - 35).toFixed(1)}%,transparent ${(p * 135).toFixed(1)}%)`;
+  e.style.webkitMaskImage = m; e.style.maskImage = m;
+  S(e, { ...ex, x: (ex.x || 0) + (1 - p) * 24 * (dir === 'l' ? 1 : -1), o: p > 0 ? (ex.o ?? 1) : 0 }); return p }
+function line(e, t, t0, d = .5) { const p = E.out4(P(t, t0, t0 + d)); e.style.transform = `scaleX(${p.toFixed(4)})`; e.style.opacity = p > 0 ? 1 : 0 }
+function stamp(stks, t, t0) {                        // 강조 상자: 카드 하나에 한 번
+  stks.forEach((s, i) => { const a = t0 + i * .12, p = E.out4(P(t, a, a + .34)); S(s, { s: lerp(1.18, 1, p), r: lerp(-5, -1.5, p), o: E.out(P(t, a, a + .12)) }) });
+}
+function fit(el, maxW, minScale = .6) {
+  el.style.fontSize = ''; const base = parseFloat(getComputedStyle(el).fontSize), w = Math.max(el.scrollWidth, el.offsetWidth);
+  if (w > maxW) el.style.fontSize = Math.max(base * minScale, Math.floor(base * maxW / w)) + 'px';
+}
+const mixRGB = (a, b, q) => `rgb(${a.map((v, j) => Math.round(lerp(v, b[j], q))).join(',')})`;
+const C = { iv: THEME.ivrgb, bl: THEME.blrgb, ink: [29, 36, 51], co: THEME.corgb, mute: [111, 116, 128] };
+function evenly(n, a, b) { if (n <= 1) return [a]; const st = Math.max(.25, (b - a) / (n - 1)); return Array.from({ length: n }, (_, i) => a + i * st) }
+const ICON = {
+  check: (fill = THEME.co) => `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="${fill}"/><path d="M14 24.5l7 7 13-14" fill="none" stroke="${THEME.iv}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  cross: (fill = '#1D2433') => `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="${fill}"/><path d="M16.5 16.5l15 15M31.5 16.5l-15 15" fill="none" stroke="${THEME.iv}" stroke-width="5" stroke-linecap="round"/></svg>`,
+  x: c => `<svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="${c}" stroke-width="3.6" stroke-linecap="round"/></svg>`,
+  down: c => `<svg viewBox="0 0 48 48"><path d="M24 7v31M11 26l13 13 13-13" fill="none" stroke="${c}" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  right: c => `<svg viewBox="0 0 48 48"><path d="M7 24h31M26 11l13 13-13 13" fill="none" stroke="${c}" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+};
+// 제목 + 키 컬러 밑줄 (챕터 전환의 서명 동작을 카드에도 짧게 반복)
+function head(R, text, dots = 0) {
+  if (!has(text)) return null;
+  const d = dots ? `<span class="rdots">${'<i></i>'.repeat(dots)}</span>` : '';
+  const e = isSide
+    ? add(`<div class="hd-wrap"><div class="hd an">${rich(text)}</div><div class="hd-foot"><div class="hd-line"></div>${d}</div></div>`, R)
+    : add(`<div class="col"><div class="frd"><div class="fhd an">${rich(text)}</div>${d}</div><div class="fhd-line"></div></div>`, R);
+  return { e, txt: $(isSide ? '.hd' : '.fhd', e), ln: $(isSide ? '.hd-line' : '.fhd-line', e), dots: $$('.rdots i', e) };
+}
+function headUpd(h, t) { if (!h) return; rise(h.txt, t, .18); line(h.ln, t, .42); }
+function dot(i, q, c = C.bl) { i.style.background = q > .01 ? `rgba(${c.join(',')},${lerp(.16, 1, q).toFixed(3)})` : '' }
+
+// ───────── 1. number: 숫자 굴리기 (0 또는 from → to) + 막대
+function kNumber(R) {
+  const to = num(D.to ?? D.value), hasFrom = has(D.from), from = hasFrom ? num(D.from) : 0;
+  const dd = Math.max(decs(D.to ?? D.value), hasFrom ? decs(D.from) : 0);
+  const max = num(D.max) || Math.max(Math.abs(to), Math.abs(from)) || 1, min = num(D.min);
+  const at = num(D.at, .7), roll = num(D.roll, 1.2), unit = str(D.unit);
+  const fl = str(D.fromlabel, isSide ? '처음' : '');
+  const h = head(R, D.title);
+  const badge = has(D.badge) ? `<div class="n-badge an">${ICON.check()}<span class="stk">${esc(D.badge)}</span></div>` : '';
+  let fromEl, arr;
+  if (isSide && hasFrom) { fromEl = add(`<div class="n-from an">${esc(fl)} <b>${fmt(from, dd)}</b>${esc(unit)}</div>`, R); arr = add(`<div class="n-arr an">${ICON.down(THEME.bl)}</div>`, R) }
+  const row = add(`<div class="n-row an"><span class="n-val">${fmt(from, dd)}</span>${unit ? `<span class="n-unit">${esc(unit)}</span>` : ''}${isSide ? '' : badge}</div>`, R);
+  const bar = add(`<div class="n-bar"><div class="n-track an">${hasFrom ? '<div class="n-ghost"></div>' : ''}<div class="n-fill"></div></div>${!isSide && hasFrom ? `<div class="n-fromlab an">${fl ? esc(fl) + ' ' : ''}${fmt(from, dd)}${esc(unit)}</div>` : ''}</div>`, R);
+  const sub = has(D.sub) ? add(`<div class="${isSide ? 'sub' : 'fsub'} n-sub${!isSide && hasFrom ? ' lo' : ''} an">${rich(D.sub)}</div>`, R) : null;
+  const bEl = isSide && badge ? add(badge, R) : $('.n-badge', row);
+  const val = $('.n-val', row), track = $('.n-track', bar), fill = $('.n-fill', bar), ghost = $('.n-ghost', bar), flab = $('.n-fromlab', bar);
+  const stks = $$('.stk', R).filter(s => !bEl || !bEl.contains(s)), bStk = bEl ? $('.stk', bEl) : null;
+  let w0 = 0, w1 = 0, box = 0;
+  const pct = v => clamp((Math.abs(v) - min) / ((max - min) || 1)) * 100;
+  return {
+    lay() {
+      if (h) fit(h.txt, isSide ? IW : 1600);
+      const ue = $('.n-unit', row);
+      const measure = () => { val.style.width = 'auto'; val.textContent = fmt(from, dd); w0 = val.offsetWidth; val.textContent = fmt(to, dd); w1 = val.offsetWidth; box = Math.max(w0, w1); val.style.width = box + 'px' };
+      measure();
+      const maxW = isSide ? IW : 1500, rowW = box + (ue ? ue.offsetWidth + parseFloat(getComputedStyle(ue).marginLeft) : 0);
+      if (rowW > maxW) { const k = Math.max(.45, maxW / rowW); [val, ue].forEach(e => { if (e) e.style.fontSize = parseFloat(getComputedStyle(e).fontSize) * k + 'px' }); measure() }   // 넘치면 숫자와 단위를 같이 줄인다
+      if (ghost) ghost.style.width = pct(from) + '%';
+      if (flab) flab.style.left = `calc(${pct(from)}% - ${pct(from) > 50 ? flab.offsetWidth : 0}px)`;
+    },
+    upd(t) {
+      headUpd(h, t);
+      if (fromEl) { rise(fromEl, t, .3); rise(arr, t, .42) }
+      const q = E.out3(P(t, at, at + roll)), v = lerp(from, to, q);
+      val.textContent = fmt(v, dd);
+      if (isSide) blurIn(row, t, .4, .7);
+      else blurIn(row, t, .2, .8, { x: -(box - lerp(w0, w1, q)) / 2 });
+      wipe(track, t, isSide ? .5 : .4, .6);
+      fill.style.width = pct(v).toFixed(3) + '%';
+      if (ghost) ghost.style.opacity = E.out(P(t, at, at + .4)).toFixed(3);
+      if (flab) rise(flab, t, at + .1);
+      if (sub) rise(sub, t, at + roll - .35);
+      if (bEl) { const a = at + roll + .05; S(bEl, { o: E.out(P(t, a, a + .15)) }); stamp([bStk], t, a); const ck = $('svg', bEl); S(ck, { s: lerp(.6, 1, E.out4(P(t, a + .08, a + .4))), o: E.out(P(t, a + .08, a + .2)) }) }
+      if (stks.length) stamp(stks, t, at + roll + .05);
+    } };
+}
+
+// ───────── 2. steps: 말하는 순서대로 한 칸씩 키 컬러로 켜고, 지난 칸은 보조색 체크
+function kSteps(R) {
+  const raw = Array.isArray(D.items) ? D.items : list(D.items).filter(s => s !== '');
+  const subs = list(D.subs), ats = list(D.at);
+  const MAXN = isSide ? 7 : 8;
+  const items = raw.slice(0, MAXN).map((it, i) => {
+    const o = it && typeof it === 'object' ? it : { name: it, sub: subs[i] };
+    const a = has(o.at) ? o.at : ats[i];
+    return { name: str(o.name ?? o.t ?? o.title), sub: str(o.sub), at: has(a) ? num(a) : null };
+  });
+  if (!items.length) throw new Error('steps에 items가 없습니다');
+  const n = items.length, chk = !off(D.check), hasSub = items.some(x => x.sub);
+  const h = head(R, str(D.title, '단계'), n);
+  let cards, isList = false, cw = 0, noteEl = null;
+  if (isSide) {
+    const rowH = Math.min(hasSub && n <= 5 ? 104 : 76, Math.floor((660 - (n - 1) * 6) / n));   // 칸 아래 글자는 5칸 이하일 때만
+    const box = add('<div class="st-list"></div>', R);
+    cards = items.map((it, i) => { const c = add(`<div class="st-row an" style="height:${rowH}px"><div class="st-no"><div class="d">${i + 1}</div>${chk ? ICON.check() : ''}</div><div class="st-tx"><div class="st-name">${rich(it.name)}</div>${it.sub && rowH >= 96 ? `<div class="st-sub">${rich(it.sub)}</div>` : ''}</div></div>`, box);
+      return { c, d: $('.d', c), ck: $('svg', c), name: $('.st-name', c), sub: $('.st-sub', c) } });
+  } else {
+    isList = D.layout === 'list';
+    const cols = Math.round(num(D.cols)) || (n <= 4 ? n : Math.ceil(n / 2));
+    cw = cols >= 4 ? 400 : cols === 3 ? 470 : 560;
+    const big = cols <= 3, ch = (hasSub ? 250 : 200) + (big ? 40 : 0), nameFs = cols >= 4 ? 52 : cols === 3 ? 58 : 64, rowH = n <= 3 ? 170 : Math.min(112, Math.floor((780 - (n - 1) * 16) / n));
+    const box = add(isList ? `<div class="fs-list${n <= 3 ? ' big' : ''}"></div>` : `<div class="fs-grid" style="width:${cols * cw + (cols - 1) * 28}px"></div>`, R);
+    noteEl = has(D.note) ? add(`<div class="fs-note an">${rich(D.note)}</div>`, R) : null;
+    cards = items.map((it, i) => {
+      const no = String(i + 1).padStart(2, '0'), ck = chk ? `<div class="fs-chk">${ICON.check()}</div>` : '';
+      const c = add(isList
+        ? `<div class="fs-row box an" style="height:${rowH}px"><div class="fs-no">${no}</div><div class="fs-name">${rich(it.name)}</div>${it.sub ? `<div class="fs-sub">${rich(it.sub)}</div>` : ''}${ck}</div>`
+        : `<div class="fs-card box an" style="width:${cw}px;height:${ch}px"><div class="fs-no">${no}</div>${ck}<div><div class="fs-name" style="font-size:${nameFs}px">${rich(it.name)}</div>${it.sub ? `<div class="fs-sub"${big ? ' style="font-size:36px"' : ''}>${rich(it.sub)}</div>` : ''}</div></div>`, box);
+      return { c, d: $('.fs-no', c), ck: $('.fs-chk', c), name: $('.fs-name', c), sub: $('.fs-sub', c) } });
+  }
+  return {
+    lay() {
+      if (h) fit(h.txt, isSide ? IW : 1500);
+      cards.forEach(q => { fit(q.name, isSide ? IW - 68 : isList ? (n <= 3 ? 900 : 760) : cw - 64, .62); if (q.sub) fit(q.sub, isSide ? IW - 68 : isList ? 380 : cw - 64, .7) })
+    },
+    upd(t, dur, end) {
+      const auto = evenly(n, Math.max(1.0, .3 + n * .07 + .5), end - .6), A = items.map((it, i) => it.at ?? auto[i]);
+      headUpd(h, t);
+      cards.forEach((q, i) => {
+        const a = A[i], nx = i < n - 1 ? A[i + 1] : Infinity;
+        const on = E.out(P(t, a, a + .3)) * (1 - E.out(P(t, nx, nx + .35)));     // 한 번에 한 칸
+        const done = chk ? E.out(P(t, nx, nx + .35)) : 0;
+        const rev = E.out4(P(t, a + .02, a + .42));
+        if (isSide) {
+          rise(q.c, t, .3 + i * .07, .55);
+          q.c.style.background = `rgba(${THEME.bls},${on.toFixed(3)})`;
+          q.c.classList.toggle('on', on > .5);
+          const col = mixRGB(C.ink, C.iv, on);
+          q.name.style.color = col; if (q.sub) q.sub.style.color = on > .01 ? mixRGB(C.mute, C.iv, on) : '';
+          q.d.style.borderColor = on > .01 ? `rgba(${THEME.ivs},${on.toFixed(3)})` : '';
+          q.d.style.background = on > .01 ? `rgba(${THEME.ivs},${on.toFixed(3)})` : '';
+          q.d.style.color = mixRGB(C.ink, C.bl, on);
+        } else {
+          rise(q.c, t, .25 + i * .07, .55, { s: 1 + .03 * on });
+          q.c.style.background = on > .01 ? mixRGB([255, 252, 246], C.bl, on) : '';
+          q.c.style.borderColor = on > .01 ? `rgba(${THEME.bls},${on.toFixed(3)})` : '';
+          q.c.classList.toggle('on', on > .5);
+          q.name.style.color = mixRGB(C.ink, C.iv, on); if (q.sub) q.sub.style.color = on > .01 ? mixRGB(C.mute, C.iv, on) : '';
+          q.d.style.color = mixRGB(C.bl, C.iv, on);
+        }
+        if (q.ck) S(q.ck, { s: lerp(.6, 1, E.out4(P(t, nx + .05, nx + .4))), o: done });
+        if (isSide) q.d.style.opacity = (1 - done).toFixed(3);
+        [q.name, q.sub].forEach(e => { if (!e) return; e.style.filter = rev < .98 ? `blur(${(10 * (1 - rev)).toFixed(2)}px)` : 'none'; e.style.opacity = (.38 + .62 * rev).toFixed(3) });
+        if (h && h.dots[i]) dot(h.dots[i], E.out(P(t, a, a + .3)));
+      });
+      if (noteEl) rise(noteEl, t, Math.min(A[n - 1] + .5, end - .5));
+    } };
+}
+
+// ───────── 3. verdict: 이렇게 하세요 / 피하세요
+function kVerdict(R) {
+  const MAXN = isSide ? 4 : 6;
+  const norm = arr => (Array.isArray(arr) ? arr : list(arr).filter(s => s !== '')).slice(0, MAXN).map(it => it && typeof it === 'object' ? { t: str(it.t ?? it.name ?? it.text), at: has(it.at) ? num(it.at) : null } : { t: str(it), at: null });
+  const L = norm(D.ai ?? D.yes ?? D.do), Rr = norm(D.human ?? D.no ?? D.dont), ats = list(D.at);
+  [...L, ...Rr].forEach((it, i) => { if (it.at === null && has(ats[i])) it.at = num(ats[i]) });
+  const lt = str(D.left, '이렇게 하세요'), rt = str(D.right, '피하세요');
+  const h = head(R, D.title);
+  let hds = [], lists = [], panels = [], sep = null;
+  if (isSide) {
+    const b1 = add(`<div><div class="vd-hd an">${ICON.check(THEME.bl)}<span>${rich(lt)}</span></div><div class="vd-list"></div></div>`, R);
+    if (Rr.length) sep = add('<div class="vd-sep"></div>', R);
+    const b2 = Rr.length ? add(`<div><div class="vd-hd no an">${ICON.cross()}<span>${rich(rt)}</span></div><div class="vd-list"></div></div>`, R) : null;
+    hds = [$('.vd-hd', b1), b2 && $('.vd-hd', b2)].filter(Boolean); lists = [$('.vd-list', b1), b2 && $('.vd-list', b2)];
+  } else {
+    const rows = Math.max(L.length, Rr.length, 1);
+    const w = add(`<div class="fv-wrap">
+      <div class="fv-panel box an"><div class="fv-hd an">${ICON.check(THEME.bl)}<span>${rich(lt)}</span></div><div class="fv-list"></div></div>
+      <div class="fv-panel box an"><div class="fv-hd no an">${ICON.cross()}<span>${rich(rt)}</span></div><div class="fv-list"></div></div></div>`, R);
+    panels = $$('.fv-panel', w); hds = $$('.fv-hd', w); lists = $$('.fv-list', w);
+    lists.forEach(l => l.style.minHeight = (rows * 88) + 'px');
+  }
+  const mk = (it, k) => { const e = add(isSide
+      ? `<div class="vd-it${k ? ' no' : ''} an"><span class="b">${k ? ICON.x('#1D2433') : '<i></i>'}</span><span class="tx">${rich(it.t)}</span></div>`
+      : `<div class="fv-it${k ? ' no' : ''} an"><span class="b">${k ? ICON.x('#1D2433') : '<i></i>'}</span><span class="tx">${rich(it.t)}</span></div>`, lists[k]);
+    return { e, b: $('.b', e), side: k, at: it.at } };
+  const items = [...L.map(it => mk(it, 0)), ...Rr.map(it => mk(it, 1))];
+  return {
+    lay() { if (h) fit(h.txt, isSide ? IW : 1640); hds.forEach(e => fit(e, isSide ? IW : 696, .7)) },
+    upd(t, dur, end) {
+      headUpd(h, t);
+      const t0 = h ? .35 : .15;
+      if (!isSide) panels.forEach((p, k) => rise(p, t, t0 + k * .07, .6));
+      const auto = evenly(items.length, t0 + .9, end - .5), A = items.map((q, i) => q.at ?? auto[i]);
+      const r0 = items.findIndex(q => q.side === 1), rStart = r0 >= 0 ? A[r0] : Infinity;
+      if (isSide) { wipe(hds[0], t, t0 + .1, .6); if (hds[1]) { wipe(hds[1], t, rStart - .45, .6); line(sep, t, rStart - .55, .5) } }   // 아래 칸 제목은 첫 항목 직전에
+      else hds.forEach((e, k) => wipe(e, t, t0 + .3 + k * .07, .6));
+      items.forEach((q, i) => {
+        const a = A[i];
+        push(q.e, t, a, .5, -1, {}, 40);
+        const g = E.bump(P(t, a + .1, a + .8));
+        q.b.style.filter = g > .01 && !q.side ? `drop-shadow(0 0 ${(10 * g).toFixed(1)}px rgba(${THEME.bls},${(.8 * g).toFixed(2)}))` : 'none';
+      });
+    } };
+}
+
+// ───────── 4. compare: 전 → 후 (side는 위아래, full은 좌우)
+function kCompare(R) {
+  const sd = (k, f) => { const o = D[k] && typeof D[k] === 'object' ? D[k] : {};
+    return { label: str(o.label ?? (typeof D[k] === 'string' ? D[k] : ''), k === 'left' ? '전' : '후'), value: o.value ?? D[f + 'v'], unit: str(o.unit ?? D[f + 'u'] ?? D.unit),
+      note: str(o.note ?? D[f + 'n']), at: has(o.at ?? D[f + 'at']) ? num(o.at ?? D[f + 'at']) : null,
+      week: list(o.week ?? D[f + 'week']).map(Number).filter(Boolean), opt: list(o.weekopt ?? D[f + 'weekopt']).map(Number).filter(Boolean) } };
+  const DAYS = '월화수목금토일';
+  const weekHtml = s => s.week.length || s.opt.length ? `<div class="wk">${[...DAYS].map((d, i) => { const on = s.week.includes(i + 1), op = s.opt.includes(i + 1);
+    return `<span class="${on ? 'on' : ''}${op ? ' on opt' : ''}">${d}${on ? `<b>${d}</b>` : ''}</span>` }).join('')}</div>` : '';
+  const SD = [sd('left', 'l'), sd('right', 'r')];
+  SD[0].at ??= .9; SD[1].at ??= 1.7;
+  const roll = num(D.roll, 1.0), wi = ['left', '1', 1].includes(D.win) ? 0 : ['right', '2', 2].includes(D.win) ? 1 : -1;
+  const h = head(R, D.title);
+  const tg = tagEl(R, D.tag);
+  const valHtml = (s, cls) => has(s.value) ? `<div class="${cls}${s.week.length ? ' wkv' : ''} an"><span class="v">${isNum(s.value) ? fmt(0, decs(s.value)) : esc(s.value)}</span>${s.unit ? `<small>${esc(s.unit)}</small>` : ''}</div>` : '';
+  let Pn, mid;
+  if (isSide) {
+    const blk = (s, k) => add(`<div class="cp-blk ${k ? 'b' : 'a'}"><div class="cp-lab an">${rich(s.label)}</div>${valHtml(s, 'cp-val')}${s.note ? `<div class="cp-note an">${rich(s.note)}</div>` : ''}</div>`, R);
+    const a = blk(SD[0], 0); mid = add(`<div class="cp-mid an">${has(D.mid) ? `<span>${esc(D.mid)}</span>` : ICON.down(THEME.bl)}</div>`, R); const b = blk(SD[1], 1);
+    Pn = [a, b].map((e, k) => ({ e, lab: $('.cp-lab', e), val: $('.cp-val', e), v: $('.v', e), note: $('.cp-note', e), s: SD[k] }));
+  } else {
+    const row = add('<div class="fc-row"></div>', R);
+    const panel = s => add(`<div class="fc-panel box an"><div class="fc-lab">${rich(s.label)}</div>${valHtml(s, 'fc-val')}${weekHtml(s)}${s.note ? `<div class="fc-note an">${rich(s.note)}</div>` : ''}</div>`, row);
+    const pa = panel(SD[0]); mid = add(`<div class="fc-mid an"><span>${has(D.mid) ? esc(D.mid) : ICON.right(THEME.iv)}</span></div>`, row); const pb = panel(SD[1]);
+    Pn = [pa, pb].map((e, k) => ({ e, lab: $('.fc-lab', e), val: $('.fc-val', e), v: $('.v', e), note: $('.fc-note', e), s: SD[k], wk: $$('.wk b', e), wkb: $('.wk', e) }));
+  }
+  return {
+    lay() { if (h) fit(h.txt, isSide ? IW : 1600); Pn.forEach(q => { fit(q.lab, isSide ? IW : 640, .7); if (q.val) fit(q.val, isSide ? IW : 650, .45) }) },
+    upd(t) {
+      headUpd(h, t);
+      const t0 = h ? .3 : .1;
+      const winAt = Math.max(SD[0].at, SD[1].at) + (isNum(SD[0].value) || isNum(SD[1].value) ? roll : .6);
+      Pn.forEach((q, k) => {
+        const s = q.s, hi = wi === k ? E.out(P(t, winAt, winAt + .4)) : 0, lo = wi >= 0 && wi !== k ? E.out(P(t, winAt, winAt + .5)) : 0;
+        if (isSide) { rise(q.lab, t, s.at - .3) }
+        else { wipe(q.e, t, t0, .75, k ? 'r' : 'l', { o: lerp(1, .6, lo) }); q.e.style.borderColor = hi > .01 ? `rgba(${THEME.bls},${hi.toFixed(3)})` : ''; q.e.style.borderWidth = hi > .01 ? `${(2 + 2 * hi).toFixed(2)}px` : '' }
+        if (q.val) {
+          q.val.style.color = hi > .01 ? mixRGB(C.ink, C.bl, hi) : lo > .01 ? mixRGB(C.ink, C.mute, lo) : '';
+          if (isNum(s.value)) { const tv = num(s.value), r = E.out3(P(t, s.at, s.at + roll)); q.v.textContent = fmt(tv * r, decs(s.value)); S(q.val, { o: E.out(P(t, s.at - .15, s.at + .2)) }) }
+          else blurIn(q.val, t, s.at, .6);
+        }
+        if (q.note) rise(q.note, t, s.at + .45);
+        if (q.wkb) { rise(q.wkb, t, s.at - .1, .5); q.wk.forEach((b, j) => { const a = s.at + .25 + j * .14, p = sp(t - a, 'snappy'); S(b, { s: lerp(.55, 1, p), o: clamp(p * 1.6) }) }) }
+      });
+      if (tg) rise(tg, t, .1);
+      if (isSide) rise(mid, t, (SD[0].at + SD[1].at) / 2 - .1, .45); else blurIn(mid, t, t0 + .35, .6);
+    } };
+}
+
+// ───────── 5. score: 2~3줄 점수판. win을 주면 그 줄 점수가 add만큼 올라가며 키 컬러로 켜진다
+function kScore(R) {
+  let PL = Array.isArray(D.players) ? D.players.map(p => ({ name: str(p.name), score: num(p.score) }))
+    : list(D.names).filter(s => s !== '').map((nm, i) => ({ name: nm, score: num(list(D.scores)[i]) }));
+  PL = PL.slice(0, 3);
+  if (PL.length < 2) throw new Error('score에는 2~3줄이 필요합니다 (names=A|B, scores=1|2)');
+  let wi = -1;
+  if (has(D.win)) { const k = PL.findIndex(p => p.name === String(D.win)); wi = k >= 0 ? k : (isNum(D.win) ? Math.round(num(D.win)) - 1 : -1) }
+  const addN = num(D.add, 1), at = num(D.at, 1.4), of = Math.round(num(D.of)), rn = Math.round(num(D.n)), unit = str(D.unit);
+  const h = head(R, D.title, of);
+  let cards;
+  if (isSide) {
+    const box = add('<div class="sc-list"></div>', R);
+    cards = PL.map((p, i) => { const c = add(`<div class="sc-row an"><span class="sc-name">${rich(p.name)}</span><span class="sc-valw">${i === wi ? `<span class="sc-plus an">+${fmt(addN, decs(addN))}</span>` : ''}<span class="sc-val">${fmt(p.score, decs(p.score))}</span>${unit ? `<span class="sc-unit">${esc(unit)}</span>` : ''}</span></div>`, box);
+      return { c, name: $('.sc-name', c), val: $('.sc-val', c), unit: $('.sc-unit', c), plus: $('.sc-plus', c) } });
+  } else {
+    const cw = PL.length === 3 ? 440 : 540;
+    const row = add('<div class="fsc-row"></div>', R);
+    cards = PL.map((p, i) => { const c = add(`<div class="fsc-card box an" style="width:${cw}px"><div class="fsc-name">${rich(p.name)}</div><div class="fsc-valw"><span class="fsc-val">${fmt(p.score, decs(p.score))}</span>${unit ? `<span class="fsc-unit">${esc(unit)}</span>` : ''}${i === wi ? `<span class="fsc-plus an">+${fmt(addN, decs(addN))}</span>` : ''}</div></div>`, row);
+      return { c, cw, name: $('.fsc-name', c), val: $('.fsc-val', c), unit: $('.fsc-unit', c), plus: $('.fsc-plus', c) } });
+  }
+  return {
+    lay() { if (h) fit(h.txt, isSide ? IW : 1500); cards.forEach(q => fit(q.name, isSide ? IW - $('.sc-valw', q.c).offsetWidth - 20 : q.cw - 60, .65)) },
+    upd(t) {
+      headUpd(h, t);
+      if (h) h.dots.forEach((d, i) => dot(d, i < rn ? E.out(P(t, .5 + i * .05, .8 + i * .05)) : 0));
+      cards.forEach((q, i) => {
+        const win = i === wi, p = PL[i];
+        let s = 1, o = 1, on = 0;
+        if (wi >= 0) {
+          if (win) {
+            const r = E.out3(P(t, at, at + .45)), v = lerp(p.score - addN, p.score, r), dd = Math.max(decs(p.score), decs(addN));
+            q.val.textContent = fmt(Math.round(v * 10 ** dd) / 10 ** dd, dd);
+            s = 1 + .04 * E.bump(P(t, at + .3, at + .8));
+            on = E.out(P(t, at + .3, at + .55));
+            if (q.plus) { const u = P(t, at + .2, at + 1.2); S(q.plus, { y: -46 * E.out(u), o: E.bump(u) }) }
+          } else o = lerp(1, .5, E.out(P(t, at + .3, at + .8)));
+        }
+        if (isSide) {
+          rise(q.c, t, .35 + i * .08, .55, { o });
+          q.c.style.background = `rgba(${THEME.bls},${on.toFixed(3)})`;
+          q.c.classList.toggle('on', on > .5);
+          const col = mixRGB(C.ink, C.iv, on); q.name.style.color = col; q.val.style.color = on > .01 ? col : ''; if (q.unit) q.unit.style.color = col; if (q.plus) q.plus.style.color = mixRGB(C.bl, C.iv, on);   // 켜진 줄 위에서는 바탕색
+          S(q.val, { s });
+        } else {
+          rise(q.c, t, .25 + i * .08, .6, { s, o });                              // CSS 3D 뒤집기 대신 2D(프레임 결정성)
+          q.c.style.background = on > .01 ? mixRGB([255, 252, 246], C.bl, on) : ''; q.c.style.borderColor = on > .01 ? `rgba(${THEME.bls},${on.toFixed(3)})` : '';
+          const col = mixRGB(C.ink, C.iv, on); q.name.style.color = col; q.val.style.color = col; if (q.unit) q.unit.style.color = col;
+          if (q.plus) q.plus.style.color = mixRGB(C.bl, C.iv, on);
+        }
+      });
+    } };
+}
+
+// ───────── 스프링(닫힌 식, 감쇠 진동자의 계단 응답). 같은 t면 같은 값. motion-reel-kit의 프리셋 값을 따른다
+const SPR = { snappy: [.22, .8], default: [.4, .86], heavy: [.5, 1] };
+function sp(tau, p = 'default') {
+  if (!(tau > 0)) return 0;
+  const [r, z] = Array.isArray(p) ? p : SPR[p], w = 2 * Math.PI / r;
+  if (z < 1) { const wd = w * Math.sqrt(1 - z * z); return 1 - Math.exp(-z * w * tau) * (Math.cos(wd * tau) + z * w / wd * Math.sin(wd * tau)) }
+  return 1 - Math.exp(-w * tau) * (1 + w * tau);
+}
+const slow = d => [d / 1.06, 1];                       // d초 안에 거의 멈추는 무거운(넘침 없는) 스프링
+// 막대가 위치를 옮길 때 가는 쪽 끝은 빠른 스프링, 반대쪽 끝은 느린 스프링 → 이동 중 살짝 늘어났다 돌아온다
+function indicator(t, stops) {
+  let a = stops[0][1], b = stops[0][2];
+  for (let i = 1; i < stops.length; i++) {
+    const [ti, ai, bi] = stops[i]; if (t <= ti) break;
+    const da = ai - stops[i - 1][1], db = bi - stops[i - 1][2], down = da + db >= 0;
+    a += da * sp(t - ti, down ? 'default' : 'snappy'); b += db * sp(t - ti, down ? 'snappy' : 'default');
+  }
+  return [a, b];
+}
+function tagEl(R, txt) { return has(txt) ? add(`<div class="tag an">${esc(txt)}</div>`, R) : null }
+
+// ───────── 1b. number(전후 막대): 0 기준 막대 두 줄. 처음 값을 먼저 보여 주고, 늘어난 부분만 키 컬러로 천천히 자란다
+function kNumberBars(R) {
+  const to = num(D.to ?? D.value), from = num(D.from), dd = Math.max(decs(D.to ?? D.value), decs(D.from)), unit = str(D.unit);
+  const max = num(D.max) || Math.max(Math.abs(to), Math.abs(from)) || 1;
+  const at = num(D.at, 1.5), roll = num(D.roll, 2.0);
+  const fl = str(D.fromlabel, '처음'), tl = str(D.tolabel, '지금'), diff = to - from;
+  const badge = has(D.badge) ? str(D.badge) : `${diff >= 0 ? '+' : '−'}${fmt(Math.abs(diff), dd)}${unit}`;
+  const tg = tagEl(R, D.tag), h = head(R, D.title);
+  const big = add(`<div class="nb-big an"><span class="n-val">${fmt(from, dd)}</span>${unit ? `<span class="n-unit">${esc(unit)}</span>` : ''}</div>`, R);
+  const bars = add(`<div class="nb-bars">
+    <div class="nb-row an"><div class="nb-lab">${esc(fl)} <b>${fmt(from, dd)}${esc(unit)}</b></div><div class="nb-track"><div class="nb-base"></div></div></div>
+    <div class="nb-row an"><div class="nb-lab">${esc(tl)} <b>${fmt(to, dd)}${esc(unit)}</b></div><div class="nb-track"><div class="nb-base"></div><div class="nb-grow"></div>
+      <div class="nb-brk"><i></i><span class="nb-badge an">${ICON.check()}<span class="stk">${esc(badge)}</span></span></div></div></div>
+    <div class="nb-guide an"></div></div>`, R);
+  const sub = has(D.sub) ? add(`<div class="${isSide ? 'sub' : 'fsub'} nb-sub an">${rich(D.sub)}</div>`, R) : null;
+  const val = $('.n-val', big), ue = $('.n-unit', big), rows = $$('.nb-row', bars), tracks = $$('.nb-track', bars), bases = $$('.nb-base', bars);
+  const grow = $('.nb-grow', bars), brk = $('.nb-brk', bars), brkI = $('i', brk), bdg = $('.nb-badge', bars), bStk = $('.stk', bdg), guide = $('.nb-guide', bars);
+  let tw = 0, box = 0;
+  const frac = v => clamp(Math.abs(v) / max);
+  return {
+    lay() {
+      if (h) fit(h.txt, isSide ? IW : 1600);
+      const measure = () => { val.style.width = 'auto'; val.textContent = fmt(from, dd); const a = val.offsetWidth; val.textContent = fmt(to, dd); box = Math.max(a, val.offsetWidth); val.style.width = box + 'px' };
+      measure();
+      const maxW = isSide ? IW : 1500, rowW = box + (ue ? ue.offsetWidth + 12 : 0);
+      if (rowW > maxW) { const k = Math.max(.45, maxW / rowW); [val, ue].forEach(e => { if (e) e.style.fontSize = parseFloat(getComputedStyle(e).fontSize) * k + 'px' }); measure() }
+      tw = tracks[1].offsetWidth;
+      bases.forEach(b => b.style.width = frac(from) * 100 + '%');
+      grow.style.left = frac(from) * 100 + '%';
+      brk.style.left = frac(from) * 100 + '%'; brk.style.width = (frac(to) - frac(from)) * 100 + '%';
+      guide.style.left = (tracks[0].getBoundingClientRect().left - bars.getBoundingClientRect().left + frac(from) * tw) + 'px';
+    },
+    upd(t, dur, end) {
+      if (tg) rise(tg, t, .1);
+      headUpd(h, t);
+      const q = sp(t - at, slow(roll)), v = lerp(from, to, q);
+      val.textContent = fmt(v, dd);
+      const pulse = sp(t - (at + roll - .25), 'snappy') - sp(t - (at + roll + .05), 'heavy');      // 다 굴린 순간 한 번 커졌다 돌아옴
+      const push = 1 + .03 * clamp((t - (at + roll)) / Math.max(.5, end - at - roll));            // 머무는 동안 느리게 다가감
+      blurIn(big, t, .4, .7, { s: (1 + .06 * pulse) * push });
+      val.style.color = mixRGB(C.mute, C.bl, clamp(q * 1.1)); if (ue) ue.style.color = mixRGB(C.mute, C.ink, clamp(q * 1.1));
+      rows.forEach((r, i) => rise(r, t, .75 + i * .35, .5));
+      bases.forEach((b, i) => { const p = sp(t - (.85 + i * .35), i ? 'snappy' : 'default'); b.style.transform = `scaleX(${p.toFixed(4)})`; b.style.transformOrigin = '0 50%' });
+      grow.style.width = ((frac(to) - frac(from)) * 100 * q).toFixed(3) + '%';
+      S(guide, { o: sp(t - 1.25, 'snappy') * .9 });
+      const bt = at + roll - .15, bp = sp(t - bt, 'snappy');
+      brkI.style.transform = `scaleX(${bp.toFixed(4)})`; brkI.style.opacity = bp > .01 ? 1 : 0;
+      bdg.style.opacity = sp(t - (bt + .12), 'snappy').toFixed(3);
+      stamp([bStk], t, bt + .12);
+      if (sub) rise(sub, t, at + roll + .1);
+    } };
+}
+
+// ───────── 6. toc: 목차. 지난 장은 보조색 체크, 지금 장만 진하게, 키 컬러 막대가 앞 장에서 지금 장으로 옮겨 온다
+function kToc(R) {
+  const raw = Array.isArray(D.items) ? D.items : list(D.items).filter(x => x !== '');
+  const subs = list(D.subs);
+  const items = raw.slice(0, 5).map((it, i) => it && typeof it === 'object' ? { t: str(it.t ?? it.name), s: str(it.sub) } : { t: str(it), s: str(subs[i]) });
+  if (!items.length) throw new Error('toc에 items가 없습니다');
+  const now = clamp(Math.round(num(D.now, 1)), 1, items.length) - 1;
+  const prev = has(D.prev) ? Math.round(num(D.prev)) - 1 : now - 1;
+  const at = num(D.at, 1.1);
+  let h, box;
+  if (isSide) { h = head(R, str(D.title, str(D.label, '목차'))); box = add('<div class="toc-list"><div class="toc-bar"></div></div>', R) }
+  else {                                                 // 전체 화면: 왼쪽 정렬 목록(참고 채널 목차처럼)
+    const w = add(`<div class="tocw"><div class="toc-hd an">${rich(str(D.title, '목차'))}</div><div class="hd-line"></div><div class="toc-list"><div class="toc-bar"></div></div></div>`, R);
+    h = { e: w, txt: $('.toc-hd', w), ln: $('.hd-line', w), dots: [] }; box = $('.toc-list', w);
+  }
+  const bar = $('.toc-bar', box);
+  const rows = items.map((it, i) => { const e = add(`<div class="toc-row an"><div class="toc-no">${String(i + 1).padStart(2, '0')}</div><div class="toc-tx"><div class="toc-t">${rich(it.t)}</div>${it.s ? `<div class="toc-s">${rich(it.s)}</div>` : ''}</div>${i < now ? `<div class="toc-ck an">${ICON.check()}</div>` : ''}</div>`, box);
+    return { e, no: $('.toc-no', e), t: $('.toc-t', e), s: $('.toc-s', e), ck: $('.toc-ck', e) } });
+  let Y = [];
+  return {
+    lay() { if (h) fit(h.txt, IW); rows.forEach(r => r.t.style.paddingRight = r.ck ? '52px' : '0'); Y = rows.map(r => [r.e.offsetTop, r.e.offsetTop + r.e.offsetHeight]) },
+    upd(t) {
+      headUpd(h, t);
+      rows.forEach((r, i) => {
+        rise(r.e, t, .3 + i * .09, .55);
+        const cur = i === now ? sp(t - at, 'default') : 0, was = i === prev ? 1 - sp(t - at, 'snappy') : 0, k = Math.max(cur, was * (prev >= 0 ? 1 : 0));
+        r.t.style.color = mixRGB([160, 164, 172], C.ink, k);
+        r.no.style.color = mixRGB([170, 182, 220], C.bl, k);
+        if (r.s) { r.s.style.opacity = (.55 + .45 * k).toFixed(3) }
+        if (r.ck) S(r.ck, { s: lerp(.6, 1, sp(t - (.5 + i * .09), 'snappy')), o: sp(t - (.5 + i * .09), 'snappy') });
+      });
+      const st0 = prev >= 0 ? Y[prev] : Y[now], [a, b] = indicator(t, [[0, st0[0], st0[1]], [at, Y[now][0], Y[now][1]]]);
+      bar.style.top = a.toFixed(2) + 'px'; bar.style.height = Math.max(0, b - a).toFixed(2) + 'px';
+      bar.style.opacity = sp(t - .55, 'snappy').toFixed(3);
+    } };
+}
+
+// ───────── 9. hook: 도입 질문(전체 화면). 큰 인용 → 보조 문장 → 보기 칸이 하나씩, 지금 나온 칸만 키 컬러
+function kHook(R) {
+  const opts = list(D.items).filter(x => x !== '');
+  const w = add(`<div class="hk"><div class="hk-q an">${rich(str(D.title))}</div>${has(D.sub) ? `<div class="hk-s an">${rich(D.sub)}</div>` : ''}
+    <div class="hk-opts">${opts.map(o => `<div class="hk-opt an">${rich(o)}</div>`).join('')}</div></div>`, R);
+  const q = $('.hk-q', w), sb = $('.hk-s', w), os = $$('.hk-opt', w);
+  return {
+    lay() { fit(q, 1640, .6); if (sb) fit(sb, 1640, .7) },
+    upd(t, dur, end) {
+      rise(q, t, .1, .6); if (sb) rise(sb, t, .7);
+      const A = evenly(os.length, 1.3, Math.max(1.4, end - .8));
+      os.forEach((e, i) => { const a = A[i], on = sp(t - a, 'snappy') * (i < os.length - 1 ? 1 - sp(t - A[i + 1], 'snappy') : 1);
+        rise(e, t, a, .5); e.style.borderColor = mixRGB([226, 223, 214], C.bl, on); e.style.color = mixRGB(C.ink, C.bl, on) });
+    } };
+}
+
+// ───────── 18. glass(v5): 얼굴이 보이는 반투명 카드 — toc(챕터 목차)·hook(도입 질문). 왼쪽 아래(x 64~), 마지막 줄 아래 끝 y 872
+//   판(배경)·키 컬러 표시·글자를 따로 둔다: 키 컬러 표시가 판 위, 글자 아래로 지나가야 해서
+const GA = () => String(clamp(num(D.ga, .5), .2, .9));
+function kTocGlass(R) {
+  R.style.setProperty('--ga', GA());
+  const items = (Array.isArray(D.items) ? D.items : list(D.items).filter(x => x !== '')).slice(0, 4).map(v => str(v.t ?? v));
+  if (!items.length) throw new Error('toc에 items가 없습니다');
+  // now=0: 강조 없는 목록(키 컬러 표시·체크 없음, 모든 줄 같은 밝기). rowat=초|초|…: 줄마다 등장 시각(없으면 거의 함께). 2026-11-03 예시 영상 도입 '얻을 것'
+  const plain = Math.round(num(D.now, 1)) === 0, rowAt = list(D.rowat).map(Number);
+  const now = plain ? -1 : clamp(Math.round(num(D.now, 1)), 1, items.length) - 1, prev = plain ? -1 : has(D.prev) ? Math.round(num(D.prev)) - 1 : now - 1;
+  const at = num(D.at, .8), x = num(D.x, 64), rh = num(D.rh, 60), gap = num(D.gap, 8), n = items.length;
+  const y0 = num(D.ytop, 872 - n * rh - (n - 1) * gap), Y = i => y0 + i * (rh + gap), ebH = 46, ebY = y0 - ebH - 10;
+  const ebPl = add(`<div class="gl-pl" style="left:${x}px;top:${ebY}px;height:${ebH}px"></div>`, R);
+  const pls = items.map((_, i) => add(`<div class="gl-pl" style="left:${x}px;top:${Y(i)}px;height:${rh}px"></div>`, R));
+  const ind = add(`<div class="gl-ind" style="left:${x}px"></div>`, R);
+  const eb = add(`<div class="gl-tx gl-eb" style="left:${x}px;top:${ebY}px;height:${ebH}px;padding:0 20px 0 18px"><i></i><span>${esc(str(D.label, '목차'))}</span></div>`, R);
+  const rows = items.map((t, i) => { const e = add(`<div class="gl-tx" style="left:${x}px;top:${Y(i)}px;height:${rh}px;padding:0 26px 0 22px"><span class="gt-no">${String(i + 1).padStart(2, '0')}</span><span class="gt-t">${rich(t)}</span>${i < now ? `<span class="gt-ck">${ICON.check()}</span>` : ''}</div>`, R);
+    return { e, no: $('.gt-no', e), t: $('.gt-t', e), ck: $('.gt-ck', e) } });
+  let W = [];
+  return {
+    lay() { ebPl.style.width = eb.offsetWidth + 'px'; W = rows.map(r => r.e.offsetWidth); pls.forEach((p, i) => p.style.width = W[i] + 'px') },
+    upd(t) {
+      push(ebPl, t, .05, .5, -1, {}, 40); push(eb, t, .05, .5, -1, {}, 40);
+      rows.forEach((r, i) => { const a = isFinite(rowAt[i]) ? rowAt[i] : .14 + i * .08;
+        push(pls[i], t, a, .5, -1, {}, 40); push(r.e, t, a, .5, -1, {}, 40);
+        const k = plain ? 1 : i === now ? sp(t - at, 'default') : i === prev ? 1 - sp(t - at, 'snappy') : 0;
+        r.t.style.color = `rgba(${THEME.ivs},${lerp(.6, 1, k).toFixed(3)})`; r.no.style.color = `rgba(${THEME.ivs},${lerp(.5, 1, k).toFixed(3)})`;
+        if (r.ck) S(r.ck, { o: sp(t - (i === prev ? at + .2 : a + .3), 'snappy') });   // 바로 앞 장은 키 컬러 표시가 떠난 뒤 체크
+      });
+      if (plain) { ind.style.opacity = '0'; return }
+      const from = prev >= 0 ? prev : now, mv = sp(t - at, 'default');
+      const [a, b] = indicator(t, prev >= 0 ? [[0, Y(prev), Y(prev) + rh], [at, Y(now), Y(now) + rh]] : [[0, Y(now), Y(now) + rh]]);
+      ind.style.top = a.toFixed(2) + 'px'; ind.style.height = Math.max(0, b - a).toFixed(2) + 'px';
+      ind.style.width = lerp(W[from], W[now], prev >= 0 ? mv : 1).toFixed(2) + 'px';
+      ind.style.opacity = sp(t - (prev >= 0 ? .45 : at), 'snappy').toFixed(3);
+    } };
+}
+function kHookGlass(R) {
+  R.style.setProperty('--ga', GA());
+  const opts = list(D.items).filter(x => x !== ''), ats = list(D.at).map(Number);
+  const x = num(D.x, 64), oh = num(D.oh, 70), og = 12, oy = num(D.oy, 872 - oh);
+  const boxPl = add('<div class="gl-pl"></div>', R);
+  const opPl = opts.map(() => add(`<div class="gl-pl" style="top:${oy}px;height:${oh}px"></div>`, R));
+  const box = add(`<div class="gl-tx gh-box" style="left:${x}px;padding:8px 30px 14px 28px"><div class="gh-q">${rich(str(D.title))}</div>${has(D.sub) ? `<div class="gh-s">${rich(D.sub)}</div>` : ''}</div>`, R);
+  const q = $('.gh-q', box), sb = $('.gh-s', box);
+  const ops = opts.map(o => add(`<div class="gl-tx gh-o" style="top:${oy}px;height:${oh}px">${rich(o)}</div>`, R));
+  let A = [];
+  return {
+    lay() {
+      const h = box.offsetHeight, top = oy - 10 - h; box.style.top = top + 'px';   // 위 끝이 y 620(얼굴 영역) 아래에 오도록
+      Object.assign(boxPl.style, { left: x + 'px', top: top + 'px', width: box.offsetWidth + 'px', height: h + 'px' });
+      const ow = Math.max(...ops.map(e => e.offsetWidth)) + 56;
+      ops.forEach((e, i) => { const l = x + i * (ow + og); e.style.left = opPl[i].style.left = l + 'px'; e.style.width = opPl[i].style.width = ow + 'px' });
+      A = opts.map((_, i) => has(ats[i]) && isFinite(ats[i]) ? ats[i] : 1.3 + i * 1.2);
+    },
+    upd(t) {
+      push(boxPl, t, .1, .6, -1, {}, 40); push(q, t, .1, .6, -1, {}, 40); if (sb) push(sb, t, .7, .55, -1, {}, 30);
+      ops.forEach((e, i) => { const a = A[i], on = sp(t - a, 'snappy') * (i < ops.length - 1 ? 1 - sp(t - A[i + 1], 'snappy') : 1);
+        push(opPl[i], t, a, .45, -1, {}, 40); push(e, t, a, .45, -1, {}, 40);   // 아래에서 올라오면 자막 띠(y 886)에 걸려 옆에서 들어온다
+        opPl[i].style.background = `rgba(${mixRGB(C.ink, C.bl, on).slice(4, -1)},${lerp(+GA(), .88, on).toFixed(3)})`;
+        e.style.color = `rgba(${THEME.ivs},${lerp(.82, 1, on).toFixed(3)})` });
+    } };
+}
+
+// ───────── 조립
+const KINDS = { title: R => PLACE === 'glass' ? kHookGlass(R) : kHook(R), number: R => has(D.from) && D.style !== 'roll' ? kNumberBars(R) : kNumber(R), steps: kSteps, verdict: kVerdict, compare: kCompare, score: kScore, toc: R => PLACE === 'glass' ? kTocGlass(R) : kToc(R), hook: R => PLACE === 'glass' ? kHookGlass(R) : kHook(R) };
+let card, root, panel = null, rs = 1, EB = null;
+function mkRoot() {
+  stage.querySelectorAll('.sp,.full,.split,.gl').forEach(e => e.remove());
+  if (PLACE === 'glass') root = add('<div class="gl"></div>', stage);
+  else if (isSplit) { panel = add('<div class="split"></div>', stage); root = add('<div class="split-in"></div>', panel) }
+  else if (isSide) { root = add('<div class="sp"></div>', stage); root.style.left = (SIDE === 'right' ? 1440 : 48) + 'px' }   // 오른쪽 1440–1872, 왼쪽 48–480
+  else { root = add('<div class="full"></div>', stage); if (has(D.eyebrow)) EB = add(`<div class="eb an"><i></i><span>${esc(D.eyebrow)}</span></div>`, stage) }
+}
+function fail(msg) {
+  mkRoot(); const e = add(`<div class="${isSide ? 'hd' : 'fhd'}">카드 오류</div>`, root); add(`<div class="${isSide ? 'sub' : 'fsub'}" style="margin-top:16px">${esc(msg)}</div>`, root);
+  card = { lay() {}, upd() {} }; setTimeout(() => { throw new Error(msg) });
+}
+try {
+  if (ERR) throw new Error(ERR);
+  const k = D.kind ?? 'number';
+  if (!KINDS[k]) throw new Error(`kind=${k} 는 없는 종류입니다. title · number · steps · verdict · compare · score · toc · hook 중 하나`);
+  mkRoot(); card = KINDS[k](root);
+} catch (e) { fail(e.message) }
+
+if (has(D.bgimg) && !ALPHA) document.body.style.background = `#000 url("${encodeURI(D.bgimg)}") center/cover no-repeat`;
+else if (!ALPHA) document.body.style.background = has(D.bg) ? D.bg : '#000';
+
+let laid = false, top0 = 0;
+const Y0 = 72, Y1 = has(D.ybot) ? num(D.ybot) : 920;      // ybot: 카드 아래 끝 상한(예: 하단 18% 위 870)
+function place() {
+  if (!isSide || isSplit) return;
+  root.style.transform = 'none'; const h = root.offsetHeight;
+  rs = h > Y1 - Y0 ? (Y1 - Y0) / h : 1; root.style.transformOrigin = '50% 0';
+  const hh = h * rs, mode = D.y === 'top' ? 'top' : D.y === 'bottom' ? 'bottom' : 'center';
+  top0 = mode === 'top' ? Y0 : mode === 'bottom' ? Y1 - hh : Math.round(clamp((Y0 + Y1) / 2 - hh / 2, Y0, Y1 - hh));
+  root.style.top = top0 + 'px';
+}
+window.render = function (t, dur) {
+  dur = +dur > 0 ? +dur : 4;
+  const end = EXIT > 0 ? Math.max(.6, dur - EXIT) : Math.max(0, dur - .5);   // 내용이 움직이는 끝
+  const tc = clamp(+t || 0, 0, end);
+  if (!laid) { card.lay(); place(); laid = document.fonts.status === 'loaded' }
+  card.upd(tc, dur, end);
+  const tt = clamp(+t || 0, 0, dur);
+  const pout = EXIT > 0 ? E.sine(P(tt, dur - EXIT, dur - .05)) : 0;          // 마지막 프레임은 완전히 투명
+  if (PLACE === 'glass') {                             // 요소마다 왼쪽에서 들어오고, 끝에 함께 왼쪽으로 빠진다
+    S(root, { x: -36 * pout, o: 1 - pout, b: 4 * pout });
+  } else if (isSplit) {                                // 오른쪽에서 밀려 들어오고 오른쪽으로 빠진다(투명도만으로 드나들지 않음)
+    const pin = sp(tt, 'default'), po = EXIT > 0 ? sp(tt - (dur - EXIT), 'snappy') : 0;
+    S(panel, { x: 940 * (1 - pin) + 940 * po, o: tt > 0 ? 1 : 0 });          // 940 = 패널 폭 + 왼쪽 그림자
+  } else if (isSide) {
+    const dir = SIDE === 'right' ? 1 : -1, pin = E.out4(P(tt, 0, .5));
+    S(root, { x: dir * (64 * (1 - pin) + 40 * pout), o: E.out(P(tt, 0, .3)) * (1 - pout), b: (1 - pin) * 6, s: rs, keep: true });
+  } else {
+    fullbg.style.opacity = ((BGIN ? E.out(P(tt, 0, .32)) : 1) * (1 - pout)).toFixed(3);
+    if (EB) rise(EB, tc, .05);
+    S(root, { y: -14 * pout, o: 1 - pout });
+  }
+};
+if (Q.has('play')) { const dur = num(Q.get('dur'), 4), st = performance.now(); const loop = () => { window.render(((performance.now() - st) / 1000) % (dur + .8), dur); requestAnimationFrame(loop) }; requestAnimationFrame(loop) }
+else { const dur = num(Q.get('dur'), 4); window.render(has(Q.get('t')) ? num(Q.get('t')) : Math.max(0, dur - (EXIT > 0 ? EXIT : .5)), dur) }
+</script>
+</body>
+</html>

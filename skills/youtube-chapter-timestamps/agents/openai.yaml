@@ -1,0 +1,4 @@
+interface:
+  display_name: "YouTube 챕터 타임스탬프"
+  short_description: "Whisper 전사로 영상의 유튜브 챕터를 생성합니다"
+  default_prompt: "Use $youtube-chapter-timestamps to transcribe this video and create accurate YouTube chapter timestamps."
