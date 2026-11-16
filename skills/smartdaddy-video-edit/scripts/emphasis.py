@@ -305,6 +305,61 @@ def restyle(m, text, size, st, kind, color_word, log, iid):
     return styles
 
 
+def restyle_base(m, bs):
+    """기본 자막 재료 m 을 spec base_subtitle 대로 바꾼다(제자리). 강조 자막 restyle 과 같은 필드를 쓴다."""
+    c = json.loads(m['content'])
+    sh = bs.get('shadow')
+    stk = bs.get('stroke')
+    font = bs.get('font')
+    for x in c.get('styles') or []:
+        x['fill'] = solid(bs.get('fill', '#FFFFFF'))
+        x['bold'] = bool(bs.get('bold', False))
+        if bs.get('size'):
+            x['size'] = round(float(bs['size']), 2)
+        if stk:
+            x['strokes'] = [{'width': float(stk.get('width', 0.06)), 'mode': 0, **solid(stk.get('color', '#000000'))}]
+        else:
+            x.pop('strokes', None)
+        if sh:
+            x['shadows'] = [{'diffuse': round(sh['smoothing'] / 6, 4), 'alpha': sh['alpha'], 'distance': sh.get('distance', 0),
+                             'angle': sh.get('angle', -45.0), **solid(sh.get('color', '#000000'))}]
+        else:
+            x.pop('shadows', None)
+        if font:
+            x['font'] = {'path': font['path'], 'id': str(font.get('resource_id', ''))}
+    m['content'] = json.dumps(c, ensure_ascii=False)
+    m['text_color'] = bs.get('fill', '#FFFFFF').lower()
+    if bs.get('size'):
+        m['font_size'] = round(float(bs['size']), 2)
+    if 'bold_width' in m:
+        m['bold_width'] = 0.008 if bs.get('bold') else 0.0
+    if stk:
+        m.update(border_color=stk.get('color', '#000000'), border_width=float(stk.get('width', 0.06)), border_alpha=1.0)
+    else:
+        m['border_width'] = 0.0
+    if sh:
+        d = float(sh.get('distance', 0)); ang = math.radians(sh.get('angle', -45.0))
+        m.update(has_shadow=True, shadow_color=sh.get('color', '#000000'), shadow_alpha=sh['alpha'], shadow_distance=d,
+                 shadow_smoothing=sh['smoothing'], shadow_angle=sh.get('angle', -45.0),
+                 shadow_point={'x': round(math.cos(ang) * 0.9, 6) if d else 0.0, 'y': round(math.sin(ang) * 0.9, 6) if d else 0.0})
+    else:
+        m['has_shadow'] = False
+    if not bs.get('background', True):
+        m['background_alpha'] = 0.0
+    if isinstance(m.get('check_flag'), int):
+        f = m['check_flag']
+        f = (f | 8) if stk else (f & ~8)
+        f = (f | 32) if sh else (f & ~32)
+        f = (f | 16) if bs.get('background', True) else (f & ~16)
+        m['check_flag'] = f
+    if font:                                   # 사용자 프로젝트 0916 의 받은 글꼴(ZY Genial) 저장 형식을 따른다
+        m['fonts'] = [{'id': B.uid(), 'resource_id': str(font.get('resource_id', '')), 'third_resource_id': '', 'category_id': '',
+                       'category_name': '', 'source_platform': 1, 'path': font['path'], 'effect_id': '', 'title': font.get('title', ''),
+                       'team_id': '', 'file_uri': '', 'request_id': ''}]
+        m['font_title'] = 'none'
+        m['font_path'] = ''
+
+
 def set_plain_text(m, text):
     """재료 글만 바꾸고 첫 스타일을 전체 범위로(나눈 자막의 기본 쪽)."""
     c = json.loads(m['content'])
@@ -583,6 +638,7 @@ def main():
         return refs
 
     log, rows, used = [], [], set()
+    emph_ids = set()                                   # 강조로 바꾼 자막 세그먼트(기본 자막 스타일에서 뺀다)
     sfx_rows, zoom_rows = [], []
     zcfg = st['zoom']
     for it in items:
@@ -704,6 +760,7 @@ def main():
                 s['material_id'] = m['id']
                 row['cloned_material'] = True
             restyle(m, text, size, st, kind, cw, log, iid)
+            emph_ids.add(s['id'])
             refs = []
             for r in s.get('extra_material_refs', []):     # 등장·퇴장 애니메이션 없음
                 k, rm_ = mats.get(r, (None, None))
@@ -806,6 +863,33 @@ def main():
                         strip_loudness(D, seg)
                     log.append(f"  효과음 {iid} {t0:6.2f}초 {fp.name} {db:g}dB")
         rows.append(row)
+
+    # ── 기본 자막 스타일(강조가 아닌 자막 전부) ──
+    # spec "base_subtitle": {"background": false, "bold": false, "fill": "#FFFFFF", "stroke": null | {"color", "width"},
+    #   "shadow": null | {"color", "alpha", "distance", "smoothing", "angle"}, "size": 숫자|null(그대로),
+    #   "font": null(그대로) | {"path", "resource_id", "title"}, "center": 화면 높이 비율|null(그대로)}
+    # 그림자·배경·외곽선 필드는 강조 자막(restyle)과 같은 방식으로 넣는다. 목차 이름표·스티커는 건드리지 않는다.
+    bs = spec.get('base_subtitle')
+    if bs:
+        nb = 0
+        targets = [x for x in sub_t['segments'] if x['id'] not in emph_ids]
+        if not a.dry_run:
+            texts_by_id = {mm['id']: mm for mm in D['materials']['texts']}
+            use = Counter(x['material_id'] for t in D['tracks'] for x in t['segments'])
+            for sg in targets:
+                m = texts_by_id.get(sg['material_id'])
+                if m is None:
+                    continue
+                if use[m['id']] > 1:
+                    m = copy.deepcopy(m); m['id'] = B.uid(); D['materials']['texts'].append(m); sg['material_id'] = m['id']
+                restyle_base(m, bs)
+                if bs.get('center') is not None:
+                    sg.setdefault('clip', {}).setdefault('transform', {'x': 0.0, 'y': 0.0})['y'] = round((0.5 - float(bs['center'])) * 2, 6)
+                nb += 1
+        log.append(f"  기본 자막 스타일 {len(targets)}개(강조 {len(emph_ids)}개 제외): 배경 {'켬' if bs.get('background') else '끔'} · "
+                   f"굵게 {'켬' if bs.get('bold') else '끔'} · 외곽선 {'없음' if not bs.get('stroke') else bs['stroke']} · "
+                   f"그림자 {bs.get('shadow')} · 크기 {bs.get('size') or '그대로'} · 글꼴 {(bs.get('font') or {}).get('title') or '그대로'}"
+                   f" · 중심 {bs.get('center') or '그대로'}")
 
     # ── 목차 이름표 ──
     toc_rows = []
@@ -1047,7 +1131,7 @@ def main():
     R = js[0]
     RM = C.material_index(R)
     emph = sum(1 for t in R['tracks'] if t['type'] == 'text' for s in t['segments']
-               if '"shadows"' in RM[s['material_id']][1].get('content', ''))
+               if '"shadows"' in RM[s['material_id']][1].get('content', '') and '"strokes"' in RM[s['material_id']][1].get('content', ''))
     aud = [s for t in R['tracks'] if t['type'] == 'audio' and t.get('name', '').startswith(st['sfx_track']) for s in t['segments']]
     bad = [RM[s['material_id']][1].get('type') for s in aud
            if RM[s['material_id']][1].get('type') != 'extract_music' or RM[s['material_id']][1].get('effect_id')]
